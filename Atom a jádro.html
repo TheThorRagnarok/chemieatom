@@ -1,0 +1,1356 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Atom a jádro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#edf0f5">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0f1c">
+<style>
+/* Layout: mobile app shell with bottom tabs; rail on desktop. Atom-lab palette: ink navy + electron cyan, photon amber. */
+:root{
+  --bg:#edf0f5; --surface:#ffffff; --surface-2:#e3e8f1; --fg:#111a2c; --fg-2:#56627c; --line:rgba(17,26,44,.11);
+  --accent:#0a7aa3; --on-accent:#ffffff; --accent-soft:rgba(10,122,163,.12);
+  --proton:#e0463b; --neutron:#6b7ca6; --electron:#0a8fc0; --photon:#d98500;
+  --ok:#16915f; --ok-soft:rgba(22,145,95,.13); --bad:#d3413a; --bad-soft:rgba(211,65,58,.12);
+  --shadow:0 1px 2px rgba(17,26,44,.06),0 10px 28px -14px rgba(17,26,44,.22);
+  --ease-out:cubic-bezier(.23,1,.32,1); --ease-in-out:cubic-bezier(.77,0,.175,1);
+  --f-display:'Archivo',system-ui,-apple-system,sans-serif; --f-body:'IBM Plex Sans',system-ui,-apple-system,sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --nav-h:62px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0a0f1c; --surface:#121a2e; --surface-2:#1b2641; --fg:#e8ecf6; --fg-2:#93a0bd; --line:rgba(232,236,246,.10);
+  --accent:#4cc9f0; --on-accent:#06202b; --accent-soft:rgba(76,201,240,.14);
+  --proton:#ff6b5e; --neutron:#8a9bc4; --electron:#4cc9f0; --photon:#ffb547;
+  --ok:#3ddc97; --ok-soft:rgba(61,220,151,.14); --bad:#ff6b6b; --bad-soft:rgba(255,107,107,.14);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 30px -14px rgba(0,0,0,.6); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a0f1c; --surface:#121a2e; --surface-2:#1b2641; --fg:#e8ecf6; --fg-2:#93a0bd; --line:rgba(232,236,246,.10);
+  --accent:#4cc9f0; --on-accent:#06202b; --accent-soft:rgba(76,201,240,.14);
+  --proton:#ff6b5e; --neutron:#8a9bc4; --electron:#4cc9f0; --photon:#ffb547;
+  --ok:#3ddc97; --ok-soft:rgba(61,220,151,.14); --bad:#ff6b6b; --bad-soft:rgba(255,107,107,.14);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 30px -14px rgba(0,0,0,.6); color-scheme:dark}
+
+*{box-sizing:border-box}
+html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:0;margin:0}
+button,[role=button],a,summary{touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input,select,textarea{font:inherit;font-size:16px;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
+p{margin:0}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+sup,sub{line-height:0;font-size:.7em}
+.nuc{display:inline-flex;align-items:center;white-space:nowrap}
+.nuc i{display:inline-flex;flex-direction:column;align-items:flex-end;font-style:normal;font-size:.62em;line-height:1.05;margin-right:.12em;font-family:var(--f-mono)}
+.nuc i b{font-weight:500}
+
+/* shell */
+.app{min-height:100dvh;padding-bottom:calc(var(--nav-h) + 24px)}
+.main{max-width:1040px;margin:0 auto;padding:16px 16px 8px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0 14px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:800;letter-spacing:-.02em;font-size:1.05rem}
+.brand svg{width:26px;height:26px;color:var(--accent)}
+.chip-info{font-size:.78rem;color:var(--fg-2);font-family:var(--f-mono)}
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;gap:2px;justify-content:space-around;
+  padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--surface) 78%,transparent);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border-top:1px solid var(--line)}
+.nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:12px;font-size:.68rem;font-weight:500;color:var(--fg-2);transition:color 160ms var(--ease-out),transform 120ms var(--ease-out);min-width:0}
+.nav button svg{width:22px;height:22px}
+.nav button:active{transform:scale(.94)}
+.nav button[aria-selected=true]{color:var(--accent)}
+@media (prefers-reduced-transparency:reduce){.nav{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}}
+@media (min-width:900px){
+  .nav{top:0;right:auto;width:210px;flex-direction:column;justify-content:flex-start;gap:4px;padding:84px 12px 12px;border-top:0;border-right:1px solid var(--line)}
+  .nav button{flex:none;flex-direction:row;gap:12px;padding:11px 14px;font-size:.92rem;justify-content:flex-start}
+  .app{padding:0 0 24px 210px}
+  .main{padding:28px 32px}
+  .topbar{padding-top:0}
+}
+@media (hover:hover) and (pointer:fine){.nav button:hover{color:var(--fg)}.nav button[aria-selected=true]:hover{color:var(--accent)}}
+
+.view{display:none}
+.view.on{display:block;animation:viewIn 260ms var(--ease-out) both}
+@keyframes viewIn{from{opacity:0;transform:translateY(8px)}}
+.rise>*{animation:viewIn 380ms var(--ease-out) both}
+.rise>*:nth-child(2){animation-delay:40ms}.rise>*:nth-child(3){animation-delay:80ms}.rise>*:nth-child(4){animation-delay:120ms}.rise>*:nth-child(5){animation-delay:160ms}.rise>*:nth-child(6){animation-delay:200ms}
+
+/* primitives */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+.stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.grid>*,.lab>*,.row>*{min-width:0}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.grid{display:grid;gap:12px}
+.eyebrow{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-2);font-weight:600}
+.h-sec{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
+.muted{color:var(--fg-2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:12px;font-weight:600;background:var(--surface-2);transition:transform 120ms var(--ease-out),background 160ms,opacity 160ms;min-height:44px}
+.btn:active{transform:scale(.97)}
+.btn.pri{background:var(--accent);color:var(--on-accent)}
+.btn.ok{background:var(--ok-soft);color:var(--ok)}
+.btn.bad{background:var(--bad-soft);color:var(--bad)}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn.sm{padding:7px 12px;min-height:36px;font-size:.88rem;border-radius:10px}
+@media (hover:hover) and (pointer:fine){.btn:hover{background:color-mix(in srgb,var(--surface-2) 80%,var(--fg) 8%)}.btn.pri:hover{background:color-mix(in srgb,var(--accent) 88%,#fff)}}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:7px 13px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:.85rem;font-weight:500;white-space:nowrap;transition:background 160ms,color 160ms,transform 120ms var(--ease-out)}
+.chip:active{transform:scale(.96)}
+.chip[aria-pressed=true]{background:var(--accent);color:var(--on-accent);border-color:transparent}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.72rem;font-weight:600;background:var(--accent-soft);color:var(--accent)}
+.bar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:99px;background:var(--accent);transform-origin:left;transition:transform 700ms var(--ease-out)}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:12px;padding:3px;gap:2px;max-width:100%;overflow-x:auto}
+.seg button{padding:8px 14px;border-radius:10px;font-weight:600;font-size:.88rem;color:var(--fg-2);white-space:nowrap;transition:background 160ms,color 160ms}
+.seg button[aria-selected=true]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+/* home */
+.hero{padding:22px 20px;border-radius:22px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 22%,var(--surface)),var(--surface) 70%);border:1px solid var(--line);position:relative;overflow:hidden}
+.hero h1{font-size:clamp(1.7rem,6vw,2.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.05}
+.hero p{margin-top:8px;max-width:46ch;color:var(--fg-2)}
+.hero canvas{position:absolute;right:-30px;top:50%;transform:translateY(-50%);width:200px;height:200px;opacity:.9;pointer-events:none}
+@media (max-width:520px){.hero canvas{width:150px;height:150px;right:-34px;opacity:.55}}
+.kpis{grid-template-columns:repeat(2,1fr)}
+@media (min-width:700px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{padding:14px 16px}
+.kpi .v{font-family:var(--f-display);font-weight:800;font-size:1.9rem;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:.78rem;color:var(--fg-2);margin-top:2px}
+.two{grid-template-columns:1fr}
+@media (min-width:860px){.two{grid-template-columns:1.15fr .85fr}}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;width:100%;text-align:left;padding:9px 0}
+.mrow+.mrow{border-top:1px solid var(--line)}
+.mrow .nm{font-weight:500}
+.mrow .pc{font-family:var(--f-mono);font-size:.82rem;color:var(--fg-2)}
+.mrow .bar{grid-column:1/-1}
+.tbl-wrap{overflow-x:auto;margin:0 -4px}
+table.t{border-collapse:collapse;width:100%;min-width:520px;font-size:.88rem}
+table.t th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--fg-2);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.t td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t tr:last-child td{border:0}
+.chk{display:flex;gap:12px;align-items:flex-start;padding:10px 0;width:100%;text-align:left}
+.chk+.chk{border-top:1px solid var(--line)}
+.chk .bx{flex:none;width:22px;height:22px;border-radius:7px;border:2px solid var(--fg-2);display:grid;place-items:center;transition:background 160ms,border-color 160ms;margin-top:1px}
+.chk .bx svg{width:14px;height:14px;color:var(--on-accent);stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset 260ms var(--ease-out)}
+.chk[aria-checked=true] .bx{background:var(--accent);border-color:var(--accent)}
+.chk[aria-checked=true] .bx svg{stroke-dashoffset:0}
+.chk[aria-checked=true] .tx{color:var(--fg-2);text-decoration:line-through;text-decoration-color:var(--line)}
+
+/* flashcards */
+.deck{display:flex;flex-direction:column;gap:14px;align-items:stretch}
+.stage{perspective:1400px;position:relative;touch-action:pan-y;min-height:340px}
+.drag{position:absolute;inset:0;will-change:transform;cursor:grab;touch-action:pan-y}
+.drag.back{transition:transform 320ms var(--ease-out),opacity 220ms}
+.flip{position:absolute;inset:0;transform-style:preserve-3d;transition:transform 520ms var(--ease-out)}
+.flip.on{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:22px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);padding:22px;display:flex;flex-direction:column;overflow:hidden}
+.face.bk{transform:rotateY(180deg);background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+.face .topic{margin-bottom:auto}
+.face .q{font-family:var(--f-display);font-weight:700;font-size:clamp(1.25rem,4.6vw,1.7rem);letter-spacing:-.015em;line-height:1.2;margin:auto 0;text-wrap:balance}
+.face .hint{font-size:.78rem;color:var(--fg-2);margin-top:auto}
+.face .ans{overflow:auto;margin:auto 0;font-size:1.02rem;line-height:1.55;max-height:100%}
+.stamp{position:absolute;top:18px;padding:5px 12px;border-radius:10px;font-weight:800;font-family:var(--f-display);letter-spacing:.04em;opacity:0;pointer-events:none;border:2px solid;font-size:.95rem;z-index:3}
+.stamp.l{left:16px;color:var(--bad);transform:rotate(-8deg)}.stamp.r{right:16px;color:var(--ok);transform:rotate(8deg)}
+.deckbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dots{display:flex;justify-content:space-between;font-size:.82rem;color:var(--fg-2);font-family:var(--f-mono)}
+
+/* quiz & test */
+.tiles{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.tile{text-align:left;padding:16px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px;transition:transform 140ms var(--ease-out)}
+.tile:active{transform:scale(.98)}
+.tile .nm{font-weight:600;font-family:var(--f-display);font-size:1.02rem;letter-spacing:-.01em}
+.qcard .qt{font-family:var(--f-display);font-weight:700;font-size:clamp(1.15rem,4vw,1.45rem);line-height:1.28;letter-spacing:-.01em;margin:10px 0 16px;text-wrap:pretty}
+.opts{display:flex;flex-direction:column;gap:9px}
+.opt{display:flex;gap:12px;align-items:center;text-align:left;width:100%;padding:13px 14px;border-radius:14px;background:var(--surface);border:1.5px solid var(--line);font-size:1rem;min-height:52px;transition:transform 120ms var(--ease-out),background 180ms,border-color 180ms}
+.opt:active{transform:scale(.985)}
+.opt .k{flex:none;width:26px;height:26px;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;font-family:var(--f-mono);font-size:.78rem;font-weight:500}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt.right .k{background:var(--ok);color:#fff}.opt.wrong .k{background:var(--bad);color:#fff}
+.opt.shake{animation:shake 320ms var(--ease-out)}
+@keyframes shake{20%{transform:translateX(-5px)}50%{transform:translateX(4px)}80%{transform:translateX(-2px)}}
+.expl{margin-top:14px;padding:13px 14px;border-radius:14px;background:var(--surface-2);font-size:.94rem;animation:viewIn 260ms var(--ease-out) both}
+.expl b.g{color:var(--ok)}.expl b.r{color:var(--bad)}
+.prog{display:flex;gap:4px}
+.prog i{flex:1;height:5px;border-radius:9px;background:var(--surface-2);transition:background 200ms}
+.prog i.d{background:var(--accent)}.prog i.ok{background:var(--ok)}.prog i.no{background:var(--bad)}.prog i.cur{background:var(--fg-2)}
+.score{font-family:var(--f-display);font-weight:800;font-size:3.4rem;letter-spacing:-.04em;line-height:1}
+.nav-q{display:flex;gap:6px;flex-wrap:wrap}
+.nav-q button{width:34px;height:34px;border-radius:10px;background:var(--surface-2);font-family:var(--f-mono);font-size:.8rem}
+.nav-q button.a{background:var(--accent-soft);color:var(--accent)}
+.nav-q button.c{outline:2px solid var(--accent)}
+.timer{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-weight:500;padding:6px 12px;border-radius:10px;background:var(--surface-2)}
+.timer.low{background:var(--bad-soft);color:var(--bad)}
+.rev{padding:14px 0;border-top:1px solid var(--line)}
+.rev .qt{font-weight:600;margin-bottom:8px}
+
+/* models */
+.lab{display:grid;gap:12px}
+@media (min-width:860px){.lab.split{grid-template-columns:1.3fr 1fr}}
+.cv{position:relative;border-radius:20px;background:radial-gradient(120% 100% at 50% 40%,color-mix(in srgb,var(--accent) 10%,var(--surface)),var(--surface));border:1px solid var(--line);overflow:hidden;box-shadow:var(--shadow);touch-action:pan-y}
+.cv canvas{display:block;width:100%;height:100%}
+.cv.sq{aspect-ratio:1/1;max-height:520px}
+.cv.wd{aspect-ratio:4/3}
+.cv .tag{position:absolute;left:12px;top:10px;font-family:var(--f-mono);font-size:.74rem;color:var(--fg-2);pointer-events:none}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label{font-size:.78rem;font-weight:600;color:var(--fg-2)}
+input[type=range]{width:100%;accent-color:var(--accent);min-height:32px}
+input:not([type=range]),select{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-height:40px;width:100%}
+.big-el{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.big-el .sym{font-family:var(--f-display);font-weight:800;font-size:3rem;letter-spacing:-.04em;line-height:1}
+.cfg{font-family:var(--f-mono);font-size:.95rem;line-height:1.7;word-break:break-word}
+.boxes{display:flex;flex-wrap:wrap;gap:8px 12px}
+.sub{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.sub .nm{font-family:var(--f-mono);font-size:.7rem;color:var(--fg-2)}
+.sub .bs{display:flex}
+.bxo{width:26px;height:26px;border:1.5px solid var(--fg-2);margin-right:-1.5px;display:grid;place-items:center;font-size:.9rem;line-height:1;font-family:var(--f-mono);color:var(--accent)}
+.bxo.v{border-color:var(--accent)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--fg-2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.eq{font-size:1.15rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:44px}
+.eq .arrow{color:var(--fg-2)}
+.hist{display:flex;flex-wrap:wrap;gap:6px}
+.hist span{padding:4px 9px;border-radius:9px;background:var(--surface-2);font-size:.85rem}
+.dec-btns{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media (min-width:560px){.dec-btns{grid-template-columns:repeat(4,1fr)}}
+.empty{padding:28px 12px;text-align:center;color:var(--fg-2)}
+.foot{margin-top:28px;font-size:.78rem;color:var(--fg-2);text-align:center}
+@media (prefers-reduced-motion:reduce){
+  .view.on,.rise>*,.expl{animation:none}
+  .flip{transition:opacity 200ms}
+  .opt.shake{animation:none}
+  .bar>i{transition:none}
+}
+</style>
+
+<div class="app">
+  <nav class="nav" role="tablist" aria-label="Sekce">
+    <button role="tab" data-tab="home" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="9" rx="2"/><rect x="13.5" y="3" width="7.5" height="5" rx="2"/><rect x="13.5" y="11" width="7.5" height="10" rx="2"/><rect x="3" y="15" width="7.5" height="6" rx="2"/></svg>Přehled</button>
+    <button role="tab" data-tab="cards" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="14" height="14" rx="3"/><path d="M7 3h11a3 3 0 0 1 3 3v11"/></svg>Kartičky</button>
+    <button role="tab" data-tab="quiz" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.6 2.4c-.7.4-1.1.9-1.1 1.7M12 17h.01"/></svg>Kvíz</button>
+    <button role="tab" data-tab="test" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h8l4 4v14H7z"/><path d="M14 3v5h5M10 13l2 2 3-4"/></svg>Test</button>
+    <button role="tab" data-tab="lab" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.6" fill="currentColor"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(120 12 12)"/></svg>Modely</button>
+  </nav>
+  <main class="main">
+    <div class="topbar">
+      <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="1.8" fill="currentColor"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/></svg>Atom a jádro</div>
+      <div class="chip-info" id="savedInfo">4. ročník · chemie</div>
+    </div>
+    <section class="view on" id="v-home"></section>
+    <section class="view" id="v-cards"></section>
+    <section class="view" id="v-quiz"></section>
+    <section class="view" id="v-test"></section>
+    <section class="view" id="v-lab"></section>
+    <p class="foot">Obsah vychází z tvých okruhů, zápisků a pracovních listů. Pokrok se ukládá jen v tomto prohlížeči.</p>
+  </main>
+</div>
+
+<script>
+const TOPICS=[
+ {id:'stavba',n:'Stavba atomu'},
+ {id:'nuklidy',n:'Nuklidy a izotopy'},
+ {id:'zareni',n:'Záření a radioaktivita'},
+ {id:'premeny',n:'Jaderné přeměny'},
+ {id:'polocas',n:'Poločas rozpadu'},
+ {id:'modely',n:'Modely atomu a orbitaly'},
+ {id:'kvantova',n:'Kvantová čísla'},
+ {id:'konfig',n:'Elektronová konfigurace'}
+];
+const OKRUHY=[
+ ['stavba','Části atomu, jejich velikost, částice a náboje, valenční vrstva'],
+ ['nuklidy','Atomová čísla (protonové, nukleonové) a pojmy izotop, nuklid, prvek'],
+ ['zareni','Radioaktivita (umělá, přirozená), řeka stability, záření α, β, γ'],
+ ['premeny','Štěpné reakce, termonukleární fúze, rozpadová řada, příklady přeměn jádra'],
+ ['polocas','Poločas rozpadu: výpočet počtu jader nebo procent'],
+ ['modely','Bohrův a kvantově-mechanický model, orbital'],
+ ['kvantova','Odvození kvantových čísel, tvary a počty orbitalů s, p, d, f'],
+ ['konfig','Výstavbový princip, Hundovo pravidlo, Pauliho princip'],
+ ['konfig','Konfigurace atomu, kationtu, aniontu a excitovaného stavu'],
+ ['konfig','Počet elektronů v hladině, s-, p-, d-, f-prvky a vzácné plyny']
+];
+const CARDS_RAW=[
+['stavba','Z čeho se skládá atom?','Z <b>jádra</b> a <b>elektronového obalu</b>.\nV jádře jsou protony p^+ a neutrony n^0 (společně <b>nukleony</b>), v obalu elektrony e^−.'],
+['stavba','Jaký náboj mají jádro, obal a celý atom?','Jádro je kladné, obal záporný, atom navenek <b>neutrální</b>.\nPočet protonů = počet elektronů.'],
+['stavba','Kde je v atomu soustředěna hmotnost?','V jádře, asi <b>99,9 %</b>.\nElektrony dohromady dávají jen asi 0,05 %.\nm(p) = m(n) ≈ 1,67·10^{−27} kg, m(e^−) ≈ 9,1·10^{−31} kg (elektron je asi 1840× lehčí než proton).'],
+['stavba','Jak velké jsou jádro a atom (řádově)?','Jádro: poloměr řádově <b>10^{−15} m</b> (10^{−15} až 10^{−14} m).\nAtom: poloměr řádově <b>10^{−10} m</b>.'],
+['stavba','Co je valenční vrstva?','Nejvyšší sféra obsazená elektrony. Její elektrony rozhodují o reaktivitě atomu. Ostatní obsazené vrstvy jsou vnitřní.'],
+['stavba','Sféry elektronového obalu a jejich kapacita','Sféry K, L, M, N, O, P, Q (n = 1 až 7).\nKapacita <b>2n^2</b>: K max 2 e^−, L max 8 e^−, M 18, N 32.'],
+['modely','Vývoj atomových teorií: pořadí','Demokritos a Leukippos (nedělitelné „atomy“) → Dalton → Thomson (pudinkový model, elektron 1897) → Rutherford (1911, jádro) → Bohr (1913) → kvantově-mechanický model (Schrödinger, Heisenberg).'],
+['modely','Thomsonův model','„Pudinkový“ model: kladná koule s rozptýlenými elektrony. Thomson objevil elektron (1897).'],
+['modely','Rutherfordův model (1911)','Malé, těžké, kladně nabité jádro; elektrony kolem něj obíhají jako planety. Téměř všechna hmotnost je v jádře.'],
+['modely','Bohrův model (1913)','Elektrony obíhají po <b>kruhových drahách</b> s určitou energií (hladiny K, L, M…).\nEnergie roste se vzdáleností od jádra.\nPřeskok na vyšší hladinu = pohlcení energie, na nižší = vyzáření fotonu (emise).'],
+['modely','Kvantově-mechanický model','Elektron má vlastnosti částice i vlnění. Nepohybuje se po drahách, ale je v <b>orbitalu</b>.\nHeisenbergův princip neurčitosti: nelze přesně určit, kde elektron je.'],
+['modely','Co je orbital?','Část prostoru kolem jádra, kde se elektron vyskytuje s <b>95% pravděpodobností</b>.\nTypy orbitalů: s, p, d, f, každý má jinou energii.'],
+['kvantova','Hlavní kvantové číslo n','Značí <b>energii</b> elektronu, vzdálenost od jádra a velikost orbitalu.\nHodnoty n = 1, 2, 3 … 7 (K, L, M …).\nMax. počet elektronů ve sféře: 2n^2.'],
+['kvantova','Vedlejší kvantové číslo l','Určuje <b>tvar</b> orbitalu.\nHodnoty od 0 do n − 1.\nl = 0 → s, l = 1 → p, l = 2 → d, l = 3 → f.'],
+['kvantova','Magnetické kvantové číslo m (m_{l})','Určuje <b>orientaci</b> orbitalu v prostoru.\nHodnoty od −l přes 0 do +l, tedy 2l + 1 hodnot.\nl = 1 → m = −1, 0, +1.'],
+['kvantova','Spinové kvantové číslo m_{s}','Zjednodušeně rotace elektronu kolem vlastní osy.\nDvě hodnoty: <b>+½</b> a <b>−½</b>.'],
+['kvantova','Co jsou degenerované orbitaly?','Orbitaly se stejným n i l (stejná energie), které se liší jen orientací, tedy číslem m.\nPř. tři orbitaly 2p.'],
+['kvantova','Orbital s: tvar a počet','l = 0, tvar <b>koule</b>, v každé hladině jen <b>1</b> orbital s (m = 0).\nS rostoucím n se zvětšuje poloměr.'],
+['kvantova','Orbital p: tvar a počet','l = 1, tvar <b>prostorové osmičky</b>, <b>3</b> orbitaly (m = −1, 0, 1), degenerované.\nMax. 6 elektronů.'],
+['kvantova','Orbital d: tvar a počet','l = 2, <b>5</b> orbitalů (m = −2 až +2).\n4× tvar čtyřlístku, 1× osmička s prstencem.\nMax. 10 elektronů.'],
+['kvantova','Orbital f: počet','l = 3, <b>7</b> orbitalů (m = −3 až +3). Tvary znát nemusíš.\nMax. 14 elektronů.'],
+['kvantova','Kolik orbitalů a elektronů má sféra s číslem n?','Orbitalů <b>n^2</b>, elektronů <b>2n^2</b>.\nn = 3: 9 orbitalů, 18 elektronů.'],
+['konfig','Pauliho princip výlučnosti','V atomu nemohou být dva elektrony se všemi čtyřmi kvantovými čísly stejnými.\nV jednom orbitalu jsou nejvýš <b>2 elektrony s opačným spinem</b> (↑↓).'],
+['konfig','Hundovo pravidlo maximální multiplicity','V degenerovaných orbitalech se nejdřív obsadí každý orbital <b>jedním elektronem</b> (se stejným spinem), páry vznikají až potom.\nPř. dusík 2p^3: ↑ ↑ ↑.'],
+['konfig','Výstavbový princip a pořadí orbitalů','Nejdřív se zaplňují orbitaly s nižší energií.\n<b>1s 2s 2p 3s 3p 4s 3d 4p 5s 4d 5p 6s 4f 5d 6p 7s 5f 6d 7p</b>'],
+['konfig','Madelungovo pravidlo (n + l)','Vyšší energii má orbital s vyšším součtem n + l.\n5s: 5 + 0 = 5, 4d: 4 + 2 = 6.\nPři shodě součtu se dřív plní orbital s <b>nižším n</b>.'],
+['konfig','Proč se 4s plní před 3d?','4s: n + l = 4, 3d: n + l = 5, takže 4s má nižší energii a plní se první.\nKdyž už je v d aspoň jeden elektron, 3d energeticky klesne pod 4s.'],
+['konfig','Tři způsoby zápisu elektronové konfigurace','<b>Úplná</b>: 1s^2 2s^2 2p^6 3s^1\n<b>Zkrácená</b> (vzácným plynem): [Ne] 3s^1\n<b>Rámečková</b>: orbitaly jako rámečky, elektrony jako šipky ↑↓'],
+['konfig','Zapiš konfiguraci Fe (Z = 26)','1s^2 2s^2 2p^6 3s^2 3p^6 4s^2 3d^6\nZkráceně: [Ar] 3d^6 4s^2'],
+['konfig','Výjimky: Cr a Cu','Cr: [Ar] 3d^5 4s^1 (napůl zaplněné d)\nCu: [Ar] 3d^{10} 4s^1 (plně zaplněné d)\nStejně Mo, Ag, Au. Napůl (d^5) nebo plně (d^{10}) obsazené d mají zvýšenou stabilitu.'],
+['konfig','Jak vzniká kationt a jak se píše jeho konfigurace?','Odtržením elektronů (dodáním energie, ionizační energie).\nNejdřív se odebírají elektrony z <b>nejvyšší hladiny</b> (ns), pak teprve z d.\nFe^{3+}: [Ar] 3d^5  (4s vyprázdníme první)'],
+['konfig','Jak vzniká anion?','Přijetím elektronů (uvolní se energie, elektronová afinita).\nS^{2−}: 1s^2 2s^2 2p^6 3s^2 3p^6, stejně jako Ar.'],
+['konfig','Izoelektronové částice','Mají stejný počet elektronů i konfiguraci.\nNe, Na^+, F^− mají všechny 10 elektronů: 1s^2 2s^2 2p^6.'],
+['konfig','Základní a excitovaný stav','Základní stav: minimální energie.\nExcitovaný: atom pohltí energii a elektron přeskočí do energeticky vyššího orbitalu <b>ve stejné hladině</b>, a to z nejbližšího orbitalu.\nC: 2s^2 2p^2 → 2s^1 2p^3.'],
+['konfig','Vzácné plyny: konfigurace','Valenční vrstva ns^2 np^6 (oktet, u He 1s^2). Stabilní a málo reaktivní.\nOstatní atomy se při reakcích snaží získat konfiguraci vzácného plynu.'],
+['konfig','s-, p-, d- a f-prvky','<b>s a p</b>: nepřechodné, valenční elektrony v ns a np.\n<b>d</b>: přechodné, plní (n−1)d: ns^{1–2} (n−1)d^{1–10}.\n<b>f</b>: lanthanoidy a aktinoidy (vnitřně přechodné), plní (n−2)f.'],
+['konfig','Které orbitaly mají jaké n v periodě?','Orbitaly s a p mají n rovné číslu periody, orbitaly d mají n − 1, orbitaly f mají n − 2.'],
+['konfig','Ionizační energie a elektronová afinita','<b>Ionizační energie</b>: energie na odtržení valenčního elektronu (kJ·mol^{−1}). Čím vyšší, tím méně ochotně prvek elektron odevzdá.\n<b>Elektronová afinita</b>: energie uvolněná při přijetí elektronu. Čím vyšší, tím je prvek elektronegativnější.'],
+['nuklidy','Co je protonové číslo Z?','Počet protonů v jádře. Zapisuje se vlevo dole: {1|1|H}, {32|16|S}.\nUrčuje prvek a (u neutrálního atomu) i počet elektronů.'],
+['nuklidy','Nukleonové číslo A a neutronové číslo N','<b>A = Z + N</b> (součet protonů a neutronů). Píše se vlevo nahoře: {32|16|S}.\nN = A − Z, u značky se neuvádí.'],
+['nuklidy','Nuklid','Množina atomů se stejným <b>protonovým i nukleonovým</b> číslem.\nPř. všechny atomy {15|7|N}. Nuklid je určen dvojicí Z a A.'],
+['nuklidy','Prvek','Množina atomů se stejným <b>protonovým číslem</b> (mohou mít různé A).'],
+['nuklidy','Izotopy','Atomy téhož prvku se stejným Z, ale různým N (a tedy A).\nVodík: protium {1|1|H}, deuterium {2|1|H}, tritium {3|1|H}.\nPrvky jsou mono- nebo polyizotopické.'],
+['nuklidy','Izobary','Nuklidy se stejným <b>nukleonovým</b> číslem A, ale různým Z.\nPř. {45|21|Sc} a {45|22|Ti}.'],
+['nuklidy','Izotony','Nuklidy se stejným <b>neutronovým</b> číslem N.'],
+['nuklidy','Kolik p, n a e má {75|33|As}?','Protonů 33, neutronů 75 − 33 = <b>42</b>, elektronů 33 (neutrální atom).'],
+['nuklidy','Kolik p, n a e má částice {35|17|X}^{2+}?','Protonů 17, neutronů 18, elektronů 17 − 2 = <b>15</b> (kationt 2+ elektrony ztratil).'],
+['zareni','Co je radioaktivita?','Samovolná přeměna nestabilních jader na stabilnější, spojená s vyzařováním neviditelného záření. Trvá, dokud nevznikne stabilní nuklid.'],
+['zareni','Přirozená vs. umělá radioaktivita','<b>Přirozená</b>: nestabilní jádra v přírodě se rozpadají samovolně (asi 50 radionuklidů, hlavně těžké prvky 82 < Z < 92).\n<b>Umělá</b>: i stabilní jádra se stanou radioaktivními po ozáření částicemi, např. v reaktoru.'],
+['zareni','Řeka stability','O stabilitě nuklidu rozhoduje <b>poměr počtu neutronů N a protonů Z</b>. Nuklidy mimo „řeku“ jsou radioaktivní.'],
+['zareni','Kdo objevil radioaktivitu?','Becquerel 1896 (sloučeniny uranu).\nNázev radioaktivita: manželé Curieovi 1898 (radium a polonium).'],
+['zareni','Záření α','Jádra helia {4|2|He} (2 p + 2 n), kladné.\nA klesne o 4, Z o 2, nuklid se posune o <b>2 místa vlevo</b> v PSP.\nZastaví ho list papíru, ale uvnitř těla je nebezpečné. Největší ionizační schopnost.'],
+['zareni','Záření β^−','Proud elektronů. Neutron → proton + elektron.\nZ se zvýší o 1, A se nemění, posun o <b>1 místo vpravo</b>.\nZastaví ho vrstva vody 1–2 cm nebo hliníkový plech.'],
+['zareni','Záření β^+','Proud pozitronů. Proton → neutron + pozitron {0|+1|e}.\nZ klesne o 1, A se nemění, posun o <b>1 místo vlevo</b>.\nPozitron zanikne s elektronem za vzniku fotonů.'],
+['zareni','Záření γ','Elektromagnetické (fotonové) záření s velmi krátkou vlnovou délkou a vysokou energií. Nemá náboj.\nProniká tělem, zastaví ho tlustá stěna z betonu nebo olova. Ionizuje nepřímo.'],
+['zareni','Rentgenové záření (X)','Fotonové záření: brzdné (brzdění nabitých částic) a charakteristické (přechod elektronu obalu na nižší hladinu).'],
+['zareni','Neutrony: vlastnosti a stínění','Nenabité, proto přímo neionizují (ionizace přes vzniklé záření α nebo β).\nVelmi pronikavé. Nejlépe je stíní voda, parafín nebo beton, protože H jádra je zpomalují.'],
+['premeny','Štěpná jaderná reakce','Štěpení těžkého jádra na dvě lehčí vyvolané <b>pomalými neutrony</b>.\nŘetězová reakce: aspoň 1 neutron z každého štěpení musí vyvolat další štěpení.'],
+['premeny','Termonukleární fúze','Slučování lehkých jader na těžší za vysokých teplot, uvolní se energie.\nZdroj energie hvězd včetně Slunce.'],
+['premeny','Umělá transmutace (Rutherford 1919)','Bombardování jádra částicemi.\n{14|7|N} + {4|2|He} → {17|8|O} + {1|1|H}'],
+['premeny','Jak doplnit jadernou rovnici?','Součet A vlevo = součet A vpravo a součet Z vlevo = součet Z vpravo.\nZ chybějící dvojice A a Z poznáš nuklid podle Z.'],
+['premeny','Zápis reakce (částice vlevo, vpravo)','{27|13|Al}(α, n){30|15|P} znamená: Al + α → P + n.\nPřed čárkou je dopadající částice, za čárkou vznikající.'],
+['premeny','Rozpadová řada','Řada radioaktivních přeměn končící stabilním izotopem.\n3 přírodní řady (z {232|90|Th}, {238|92|U}, {235|92|U}) končí olovem.\nUmělá řada začíná {237|93|Np}.'],
+['premeny','Rozpadová řada {238|92|U} → {206|82|Pb}','8 rozpadů α a 6 rozpadů β^−.\nA: 238 − 8·4 = 206. Z: 92 − 16 + 6 = 82.'],
+['polocas','Poločas rozpadu T½','Doba, za kterou se rozpadne <b>polovina</b> přítomných jader.\nNezávisí na množství látky ani na teplotě či tlaku, je konstantní pro daný nuklid.'],
+['polocas','Vzorec pro zbylá jádra','N = N_{0} · (½)^{t/T}\nPo 1 poločasu ½, po 2 ¼, po 3 ⅛ … po 10 poločasech zbude méně než tisícina.'],
+['polocas','Poločasy rozpadu k zapamatování','{212|84|Po}: 3·10^{−7} s (nejkratší)\n{232|90|Th}: 13,9 mld. let\n{238|92|U}: 4,5 mld. let\n{235|92|U}: 710 mil. let\n{14|6|C}: 5730 let'],
+['polocas','Radiouhlíková metoda','Živý organismus má stálý poměr izotopů uhlíku, 1 g uhlíku dává <b>16 rozpadů/min</b> ({14|6|C}).\nPo smrti ubývá {14|6|C}. Po 5730 letech (T½) je to 8 rozpadů/min. Z poklesu určíme stáří nálezu.']
+];
+
+const QS=[]; const SCAN=[];
+// scan: fixed option order as on the paper test
+function SC(n,t,q,o,a,e){const id='s'+n;QS.push({id,t,q,o,a,e,fixed:true,scan:n});SCAN.push(id)}
+// bank: correct answer first, options are shuffled at runtime
+function Q(t,q,o,e){QS.push({id:'q'+QS.length,t,q,o,a:0,e})}
+const OPT=['a','b','c','d','e'];
+
+SC(1,'nuklidy','Nuklid je:',['směs izotopů téhož prvku','soubor atomů se stejným protonovým a nukleonovým číslem','soubor atomů se stejným protonovým a různým nukleonovým číslem','soubor atomů se stejným nukleonovým a různým protonovým číslem'],1,'Nuklid je dán dvojicí Z a A. Stejné Z a různé A by byly izotopy, stejné A a různé Z izobary.');
+SC(2,'nuklidy','Izotopy jsou:',['atomy se stejným protonovým a nukleonovým číslem','prvky, které jsou radioaktivní','atomy téhož prvku, jejichž jádra obsahují různý počet neutronů','prvky s rozdílnými chemickými vlastnostmi'],2,'Stejné Z (tedy stejný prvek), různé N. Chemické vlastnosti mají prakticky stejné.');
+SC(3,'zareni','Který druh radioaktivního záření má největší ionizační schopnost?',['záření gama','záření beta','záření alfa','Röntgenovo záření'],2,'Záření α (jádra helia) je těžké a nabité, ionizuje nejsilněji, ale nejméně proniká.');
+SC(4,'nuklidy','Nuklid je úplně charakterizován:',['protonovým číslem','protonovým a nukleonovým číslem','protonovým a magnetickým číslem','průměrnou hmotností'],1,'Z určuje prvek, A (spolu se Z) určuje, o který nuklid jde.');
+SC(5,'zareni','Která z následujících jaderných přeměn charakterizuje přeměnu alfa?',['{238|92|U} → {234|90|Th}','{6|3|Li} → {3|2|He}','{7|4|Be} → {7|3|Li}','{60|27|Co} → {60|28|Ni}'],0,'α: A klesne o 4 a Z o 2. 238 → 234 a 92 → 90.');
+SC(6,'premeny','Která z následujících jaderných reakcí by vedla ke vzniku nuklidu {243|96|Cm}?',['{248|98|Cf} (n, α)','{242|94|Pu} (α, 3n)','{240|95|Am} (p, α)','{247|97|Bk} (α, p)'],1,'Pu-242 + α − 3n: A = 242 + 4 − 3 = 243, Z = 94 + 2 = 96. Ostatní možnosti dají jiné A nebo Z.');
+SC(7,'nuklidy','Směs nuklidů {45|21|X} a {45|22|Y} označujeme jako:',['izotony','izobary','izotopy','jde o nuklidy téhož prvku'],1,'Stejné A (45), různé Z, to jsou izobary.');
+SC(8,'nuklidy','Směs nuklidů {235|92|X} a {238|92|Y} označujeme jako:',['izotopy','izomery','izobary','izotony'],0,'Stejné Z (92), různé A, to jsou izotopy.');
+SC(9,'zareni','Transmutace prvku proběhla podle rovnice {238|92|U} → {234|90|Th} + ___ . Došlo k vyzáření:',['elektronu','pozitronu','helionu','neutronu'],2,'Chybí A = 4 a Z = 2, tedy jádro helia {4|2|He}, záření α.');
+SC(10,'premeny','Doplňte rovnici radioaktivní přeměny {27|13|Al} (α, ?) {30|15|P}:',['? = neutron','? = pozitron','? = proton','? = elektron'],0,'27 + 4 = 31, 31 − 30 = 1; Z: 13 + 2 = 15, 15 − 15 = 0. Částice s A = 1 a Z = 0 je neutron.');
+SC(11,'premeny','Nuklid Y vzniká transmutací nuklidu {27|13|X} vyvolanou částicí alfa. Při vzniku nuklidu Y se uvolní jeden neutron. Nuklid Y je:',['{27|14|Y}','{31|17|Y}','{28|13|Y}','{30|15|Y}'],3,'A: 27 + 4 − 1 = 30. Z: 13 + 2 − 0 = 15. Vznikne {30|15|P}.');
+SC(12,'stavba','Jaké jsou řádově poloměry atomového jádra:',['10^{−15} až 10^{−14} m','10^{−15} až 10^{−14} cm','10^{−10} m','100 pm'],0,'Jádro 10^{−15} m, celý atom 10^{−10} m.');
+SC(13,'nuklidy','Částice {35|17|X}^{2+} obsahuje:',['17 protonů, 17 elektronů, 35 neutronů','17 elektronů, 35 protonů, 18 neutronů','17 protonů, 15 elektronů, 18 neutronů','17 protonů, 17 elektronů, 18 neutronů'],2,'p = 17, n = 35 − 17 = 18, kationt 2+ má o 2 elektrony míň: 15.');
+SC(14,'nuklidy','Částice {32|16|X}^{2−} obsahuje:',['16 protonů, 16 elektronů, 16 neutronů','32 protonů, 16 elektronů, 16 neutronů','18 protonů, 18 elektronů, 16 neutronů','16 protonů, 18 elektronů, 16 neutronů'],3,'p = 16, n = 32 − 16 = 16, anion 2− má o 2 elektrony víc: 18.');
+SC(15,'zareni','Která z následujících jaderných přeměn charakterizuje přeměnu β^−?',['{22|11|Na} → {22|10|Ne}','{60|27|Co} → {60|28|Ni}','{7|4|Be} → {7|3|Li}','{226|88|Ra} → {222|86|Rn}'],1,'β^−: A se nemění, Z vzroste o 1 (27 → 28). První a třetí možnost má Z o 1 nižší (β^+), čtvrtá je α.');
+SC(16,'zareni','Která z následujících jaderných přeměn charakterizuje přeměnu β^+?',['{22|11|Na} → {24|12|Mg}','{30|15|P} → {30|14|Si}','{226|88|Ra} → {222|86|Rn}','{238|92|U} → {234|90|Th}'],1,'β^+: A zůstane, Z klesne o 1 (15 → 14).');
+SC(17,'premeny','Doplňte rovnici radioaktivní přeměny {9|4|Be} (α, ?) {12|6|C}:',['? = proton','? = pozitron','? = elektron','? = neutron'],3,'9 + 4 − 12 = 1 a 4 + 2 − 6 = 0. Částice s A = 1, Z = 0 je neutron.');
+SC(18,'zareni','Radioaktivní záření β^− je vyvoláno:',['přeměnou protonu v jádře','přeskokem elektronu do jádra','přeměnou neutronu v jádře','emisí elektronu v el. obalu'],2,'Neutron se v jádře přemění na proton a elektron, ten jádro opustí.');
+SC(19,'zareni','Radioaktivních nuklidů existuje v přírodě přibližně:',['100','50','200','250','150'],1,'V přírodě je asi 50 radionuklidů, hlavně těžké prvky mezi olovem a uranem.');
+SC(20,'zareni','Záření gama je:',['proud rychle letících jader helia','méně pronikavé než záření beta','elektromagnetické vlnění'],2,'Gama je fotonové záření, pronikavější než α i β.');
+SC(21,'zareni','Přirozená radioaktivita se projevuje:',['u atomů všech prvků','pouze u atomů, které nejsou součástí sloučenin','jako samovolná přeměna atomového jádra provázená vysíláním záření'],2,'Je to vlastnost jádra, na vazbách ve sloučeninách nezávisí.');
+SC(22,'nuklidy','Dva izotopy téhož prvku mají různý počet:',['elektronů','protonů','neutronů','pozitronů'],2,'Stejné Z, různé N.');
+SC(23,'nuklidy','Jaké protonové číslo musí mít atom, aby byl izotopem kyslíku O (Z = 8)?',['18','8','10','jakékoliv'],1,'Izotopy mají stejné protonové číslo, tedy 8.');
+SC(24,'nuklidy','Určete správný počet elementárních částic v atomu arsenu {75|33|As}:',['33 protonů, 33 neutronů, 43 elektronů','33 protonů, 42 neutronů, 33 elektronů','42 protonů, 33 neutronů, 42 elektronů','33 protonů, 75 neutronů, 33 elektronů'],1,'p = e = 33, n = 75 − 33 = 42.');
+
+function TF(t,q,truth,e){QS.push({id:'q'+QS.length,t,q:'Pravda, nebo nepravda? „'+q+'“',o:['Pravda','Nepravda'],a:truth?0:1,e,fixed:true})}
+
+/* stavba + modely */
+Q('stavba','Které částice tvoří jádro atomu?',['protony a neutrony','protony a elektrony','neutrony a elektrony','pouze protony'],'Jádro tvoří nukleony: protony a neutrony. Elektrony jsou v obalu.');
+Q('stavba','Kolik procent hmotnosti atomu přibližně připadá na jádro?',['asi 99,9 %','asi 50 %','asi 10 %','asi 0,05 %'],'Protony a neutrony jsou ~1840× těžší než elektrony, takže jádro nese téměř všechnu hmotnost.');
+Q('stavba','Poloměr atomu a poloměr jádra jsou řádově:',['10^{−10} m a 10^{−15} m','10^{−15} m a 10^{−10} m','10^{−10} m a 10^{−10} m','10^{−5} m a 10^{−10} m'],'Atom je asi 10^5krát větší než jeho jádro.');
+Q('stavba','Kolikrát je elektron přibližně lehčí než proton?',['asi 1840×','asi 10×','asi 100×','asi 1 000 000×'],'m(e) = 9,1·10^{−31} kg, m(p) = 1,67·10^{−27} kg.');
+Q('stavba','Kolik elektronů se vejde nejvýš do sféry L (n = 2)?',['8','2','6','18'],'2n^2 = 2·4 = 8.');
+Q('stavba','Co je valenční vrstva?',['nejvyšší sféra obsazená elektrony','nejnižší sféra obsazená elektrony','sféra K','sféra, která je plně obsazená'],'Valenční elektrony určují reaktivitu atomu.');
+Q('modely','Který model zavedl elektrony pohybující se po přesně určených energetických drahách?',['Bohrův','Thomsonův','Daltonův','Demokritův'],'Bohr 1913: kruhové dráhy a přeskoky mezi hladinami.');
+Q('modely','Thomsonův „pudinkový“ model popisuje atom jako:',['kladnou kouli s rozptýlenými elektrony','malé kladné jádro s obíhajícími elektrony','nedělitelnou kuličku','soustavu orbitalů'],'Thomson objevil elektron (1897) a navrhl model kladné koule s elektrony uvnitř.');
+Q('modely','Co se stane s elektronem v Bohrově modelu, když pohltí foton?',['přeskočí na vyšší hladinu','přeskočí na nižší hladinu','přemění se na proton','opustí atom vždy navždy'],'Příjem energie = vyšší hladina, vyzáření fotonu = nižší hladina.');
+Q('modely','Co říká Heisenbergův princip neurčitosti?',['nelze přesně určit polohu elektronu','elektrony mají vždy stejný spin','jádro se nedá rozdělit','elektrony obíhají po kružnicích'],'Proto se místo drah používají orbitaly.');
+Q('modely','Orbital je definován jako:',['prostor v okolí jádra, kde se elektron vyskytuje s 95% pravděpodobností','dráha, po které obíhá elektron kolem jádra','prostor, který má vždy kulový tvar','křivka, po které s 95% pravděpodobností obíhá elektron'],'Orbital není dráha. Je to oblast pravděpodobného výskytu a nemusí být kulová.');
+Q('modely','Který model zavedl pojem orbital?',['kvantově-mechanický','Rutherfordův','Thomsonův','Bohrův'],'Schrödinger a Heisenberg, 20. století.');
+TF('modely','Orbitaly s mají tvar prostorové osmičky.',false,'Orbital s je koule. Osmičku mají orbitaly p.');
+TF('modely','Orbital p má tvar prostorové osmičky a v každé sféře jsou tři.',true,'l = 1, m = −1, 0, 1.');
+
+/* kvantová čísla */
+Q('kvantova','Hlavní kvantové číslo n určuje:',['energii elektronu a velikost orbitalu','tvar orbitalu','orientaci orbitalu v prostoru','spin elektronu'],'Tvar určuje l, orientaci m, spin m_{s}.');
+Q('kvantova','Jakých hodnot nabývá vedlejší kvantové číslo l pro n = 3?',['0, 1, 2','1, 2, 3','0, 1, 2, 3','−2, −1, 0, 1, 2'],'l = 0 až n − 1.');
+Q('kvantova','Pro l = 2 nabývá magnetické kvantové číslo hodnot:',['−2, −1, 0, 1, 2','−1, 0, 1','0, 1, 2','−3 až 3'],'m = −l až +l, tedy 2l + 1 = 5 hodnot (pět orbitalů d).');
+Q('kvantova','Který soubor kvantových čísel NEEXISTUJE?',['n = 1, l = 1, m = −1','n = 3, l = 2, m = 0','n = 2, l = 1, m = −1','n = 8, l = 6, m = −5'],'Pro n = 1 smí být jen l = 0, protože l ≤ n − 1.');
+Q('kvantova','Který soubor kvantových čísel NEEXISTUJE?',['n = 0, l = 1, m = 1','n = 3, l = 0, m = 0','n = 2, l = 1, m = 1','n = 4, l = 3, m = −3'],'n musí být alespoň 1.');
+Q('kvantova','Který soubor kvantových čísel NEEXISTUJE?',['n = 4, l = −3, m = −3','n = 4, l = 3, m = −3','n = 3, l = 2, m = 2','n = 2, l = 0, m = 0'],'l nemůže být záporné, nabývá hodnot 0 až n − 1.');
+Q('kvantova','Kolik elektronů je nejvýš v orbitalech 4f?',['14','10','6','7'],'Sedm orbitalů f po dvou elektronech.');
+Q('kvantova','Kolik elektronů je nejvýš v orbitalech 3d?',['10','5','6','14'],'Pět orbitalů d po dvou elektronech.');
+Q('kvantova','Kolik orbitalů má sféra n = 3?',['9','3','6','18'],'n^2 = 9: jeden 3s, tři 3p a pět 3d.');
+Q('kvantova','Kolik elektronů se vejde do sféry n = 3?',['18','9','8','32'],'2n^2 = 2·9 = 18.');
+Q('kvantova','Které kvantové číslo nabývá hodnot +½ a −½?',['spinové','magnetické','vedlejší','hlavní'],'Spin si představ jako rotaci elektronu kolem vlastní osy.');
+Q('kvantova','Orbitalům s l = 3 odpovídá nejmenší možné n:',['4','3','2','1'],'l ≤ n − 1, tedy n ≥ l + 1 = 4.');
+Q('kvantova','Který typ orbitalu odpovídá l = 1?',['p','s','d','f'],'0 = s, 1 = p, 2 = d, 3 = f.');
+TF('kvantova','Orbitaly d jsou degenerované a je jich celkem sedm.',false,'Orbitalů d je pět, sedm jich je f.');
+TF('kvantova','Hlavní kvantové číslo nabývá vždy celočíselné kladné hodnoty.',true,'n = 1, 2, 3 …, záporné ne.');
+TF('kvantova','Pokud je n = 7, může mít vedlejší kvantové číslo hodnotu −6.',false,'l je vždy 0 až n − 1, nikdy záporné.');
+TF('kvantova','Vedlejší kvantové číslo nabývá hodnot od −n do +n.',false,'Nabývá hodnot 0 až n − 1. Hodnoty −l až +l patří magnetickému číslu.');
+TF('kvantova','Degenerované orbitaly mají stejnou hodnotu n a l.',true,'Mají stejnou energii, liší se jen orientací (m).');
+TF('kvantova','Hodnotě l = 3 odpovídá vždy n = 4.',false,'Odpovídá n ≥ 4, tedy 4, 5, 6 …');
+
+/* konfigurace */
+Q('konfig','Která konfigurace patří atomu sodíku (Z = 11)?',['1s^2 2s^2 2p^6 3s^1','1s^2 2s^2 2p^5 3s^2','1s^2 2s^2 2p^6 3p^1','1s^2 2s^2 2p^6 3s^2'],'Jedenáct elektronů: 2 + 2 + 6 + 1.');
+Q('konfig','Která konfigurace patří iontu S^{2−}?',['1s^2 2s^2 2p^6 3s^2 3p^6','1s^2 2s^2 2p^6 3s^2 3p^4','1s^2 2s^2 2p^6 3s^2','1s^2 2s^2 2p^6 3s^2 3p^2'],'S má 16 elektronů, S^{2−} jich má 18, stejně jako Ar.');
+Q('konfig','Konfigurace Fe^{3+} je:',['[Ar] 3d^5','[Ar] 3d^6 4s^2','[Ar] 3d^3 4s^2','[Ar] 3d^4 4s^1'],'Fe: [Ar] 3d^6 4s^2. Nejdřív se odebírají elektrony z 4s, pak z 3d: tři celkem, zbude 3d^5.');
+Q('konfig','Konfigurace Fe^{2+} je:',['[Ar] 3d^6','[Ar] 3d^4 4s^2','[Ar] 3d^5 4s^1','[Ar] 3d^6 4s^2'],'Odebereme oba elektrony 4s.');
+Q('konfig','Správná konfigurace mědi (Z = 29) je:',['[Ar] 3d^{10} 4s^1','[Ar] 3d^9 4s^2','[Ar] 3d^8 4s^2 4p^1','[Ar] 4s^2 4p^9'],'Výjimka: plně obsazené d^{10} je stabilnější.');
+Q('konfig','Správná konfigurace chromu (Z = 24) je:',['[Ar] 3d^5 4s^1','[Ar] 3d^4 4s^2','[Ar] 3d^6','[Ar] 4s^2 4p^4'],'Výjimka: napůl obsazené d^5 je stabilnější.');
+Q('konfig','Který orbital se podle výstavbového principu plní hned po 3p?',['4s','3d','4p','3s'],'Pořadí: … 3s 3p 4s 3d 4p …');
+Q('konfig','Který orbital se plní po 4p?',['5s','4d','5p','3d'],'… 4s 3d 4p 5s 4d 5p 6s …');
+Q('konfig','Který orbital se plní po 6s?',['4f','5d','6p','7s'],'6s (6) → 4f (7) → 5d (7) → 6p (7), při shodě n + l rozhoduje nižší n.');
+Q('konfig','Z trojice 6p, 7s, 4f se elektrony zaplní nejdřív do:',['4f','6p','7s','všechny stejně'],'Všechny mají n + l = 7. Při shodě se plní orbital s nejnižším n, tedy 4f.');
+Q('konfig','Z trojice 4p, 3d, 5s se elektrony zaplní nejdřív do:',['3d','4p','5s','všechny stejně'],'Všechny mají n + l = 5, nejnižší n má 3d.');
+Q('konfig','Z trojice 4s, 3d, 3p se elektrony zaplní nejdřív do:',['3p','4s','3d','všechny stejně'],'3p má n + l = 4, 4s také 4 (ale 3p má menší n), 3d má 5.');
+Q('konfig','Z trojice 7d, 8s, 7p se elektrony zaplní nejdřív do:',['7p','7d','8s','všechny stejně'],'7p a 8s mají n + l = 8, nižší n má 7p. 7d má 9.');
+Q('konfig','Kolik nepárových elektronů má atom dusíku (2p^3)?',['3','1','2','0'],'Hundovo pravidlo: tři orbitaly 2p obsadí po jednom elektronu.');
+Q('konfig','Kolik nepárových elektronů má atom kyslíku (2p^4)?',['2','4','0','1'],'Jeden orbital 2p má pár, dva zbylé mají po jednom elektronu.');
+Q('konfig','Kolik elektronů je ve valenční vrstvě chloru (Z = 17)?',['7','5','17','8'],'3s^2 3p^5 = 7 valenčních elektronů.');
+Q('konfig','Kolik elektronů je ve sféře M (n = 3) u železa (Z = 26)?',['14','8','18','6'],'Fe: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^6 4s^2. Ve sféře M: 2 + 6 + 6 = 14.');
+Q('konfig','Která částice NEMÁ konfiguraci 1s^2 2s^2 2p^6?',['Mg','Ne','Na^+','F^−'],'Mg má 12 elektronů. Ne, Na^+ a F^− mají po 10.');
+Q('konfig','Valenční konfigurace všech vzácných plynů (kromě He) je:',['ns^2 np^6','ns^2 np^2','ns^2 np^4','ns^2 (n−1)d^{10}'],'Oktet: stabilní, málo reaktivní.');
+Q('konfig','Který orbital plní d-prvky (přechodné prvky)?',['(n−1)d','ns','np','(n−2)f'],'V předposlední sféře. Valenční elektrony jsou obvykle v ns a (n−1)d.');
+Q('konfig','První excitovaný stav uhlíku (základní 2s^2 2p^2) je:',['2s^1 2p^3','2s^2 2p^1 3s^1','2s^0 2p^4','1s^1 2s^2 2p^3'],'Excituje se ve stejné hladině: elektron z 2s přejde do prázdného orbitalu 2p.');
+Q('konfig','Který zápis je NESPRÁVNÝ?',['4s^5','3p^3','1s^2','6p^4'],'Orbital s pojme nejvýš 2 elektrony.');
+Q('konfig','Který zápis je NESPRÁVNÝ?',['3f^8','4f^8','3d^8','5p^3'],'Ve sféře n = 3 existují jen s, p, d. Orbital f začíná až od n = 4.');
+Q('konfig','Který zápis je NESPRÁVNÝ?',['1p^3','2p^3','3d^3','4s^1'],'V první sféře je jen orbital 1s.');
+Q('konfig','Který zápis je NESPRÁVNÝ?',['4p^7','4p^5','4p^6','4p^1'],'Tři orbitaly p pojmou nejvýš 6 elektronů.');
+Q('konfig','Které ionty mají stejnou konfiguraci jako Ar?',['Cl^−, K^+, Ca^{2+}','Cl^+, K^−, Ca^−','Na^+, F^−, Mg^{2+}','Li^+, Be^{2+}'],'Všechny mají 18 elektronů.');
+Q('konfig','Proč se u d-prvků plní 4s před 3d, ale při tvorbě kationtu se 4s odebírá první?',['po obsazení d se d energeticky podsune pod s','4s má vyšší n, ale vždy nižší energii','3d má vždy nižší energii než 4s','jde o náhodu'],'Jakmile je v orbitalu d aspoň jeden elektron, energie (n−1)d klesne pod ns. Proto se elektrony odebírají nejdřív z ns.');
+
+/* poločas */
+Q('polocas','V systému je 3200 jader nuklidu. Kolik jich zbude po 6 poločasech?',['50','100','200','6,25'],'3200 / 2^6 = 3200 / 64 = 50.');
+Q('polocas','Za jak dlouho se přemění tři čtvrtiny nuklidu s poločasem T?',['2T','T','3T','4T'],'Po jednom T zbyde ½, po dvou ¼. Přeměnily se ¾.');
+Q('polocas','Kolik procent jader zbude po třech poločasech?',['12,5 %','25 %','6,25 %','33 %'],'(½)^3 = ⅛ = 12,5 %.');
+Q('polocas','Z 800 jader zbude po třech poločasech:',['100','400','200','50'],'800 / 8 = 100.');
+Q('polocas','Vzorek má 25 % původního množství radionuklidu. Kolik poločasů uplynulo?',['2','1','4','25'],'(½)^2 = ¼.');
+Q('polocas','Aktivita vzorku s ¹⁴C klesla na čtvrtinu živého organismu. Jaké je stáří (T½ = 5730 let)?',['11 460 let','5 730 let','17 190 let','22 920 let'],'Čtvrtina = 2 poločasy = 2·5730.');
+Q('polocas','Na čem závisí poločas rozpadu?',['jen na konkrétním nuklidu','na teplotě','na tlaku','na množství látky'],'Je pro nuklid konstantní a vnějšími vlivy se nedá ovlivnit.');
+Q('polocas','Po kolika poločasech zbude v soustavě méně než tisícina původních jader?',['po 10','po 5','po 3','po 100'],'2^{10} = 1024 > 1000.');
+Q('polocas','Který nuklid ze zápisků má nejdelší poločas?',['{232|90|Th} (13,9 mld. let)','{238|92|U} (4,5 mld. let)','{235|92|U} (710 mil. let)','{212|84|Po} (3·10^{−7} s)'],'Th-232 má 13,9 miliardy let.');
+Q('polocas','Kolik rozpadů za minutu dává 1 g uhlíku z živého organismu a kolik po 5730 letech?',['16, pak 8','8, pak 4','100, pak 50','16, pak 4'],'Poločas ¹⁴C je 5730 let, aktivita klesne na polovinu.');
+TF('polocas','Poločas rozpadu je pro všechna nestabilní jádra stejný.',false,'Každý nuklid má svůj vlastní poločas.');
+TF('polocas','Poločas rozpadu je doba, za kterou se rozpadne polovina přítomných jader radioaktivního nuklidu.',true,'To je definice poločasu.');
+TF('polocas','Poločas rozpadu se s množstvím radioaktivní látky zkracuje.',false,'Na množství nezávisí.');
+
+/* záření + přeměny */
+Q('zareni','Který druh záření zastaví už list papíru?',['záření α','záření β','záření γ','neutrony'],'α částice jsou velké a pomalé, zastaví je papír nebo kůže.');
+Q('zareni','Záření β^− tvoří:',['elektrony','jádra helia','pozitrony','fotony'],'β^+ tvoří pozitrony, γ fotony, α jádra helia.');
+Q('zareni','Záření γ ionizuje:',['nepřímo, přes nabité částice vzniklé při interakci','přímo a nejsilněji ze všech druhů','vůbec ne','jen kovy'],'Foton je bez náboje, ionizaci způsobí až vzniklé nabité částice.');
+Q('zareni','Čím nejlépe odstíníme neutrony?',['vodou, parafínem nebo betonem','listem papíru','tenkým hliníkovým plechem','tenkou fólií'],'Materiály bohaté na vodík zpomalují neutrony srážkami s jádry vodíku.');
+Q('zareni','Kdo poprvé pozoroval radioaktivitu a kdy?',['Becquerel, 1896','Curieovi, 1898','Rutherford, 1919','Bohr, 1913'],'Becquerel u sloučenin uranu. Curieovi pak objevili radium a polonium.');
+Q('zareni','Co rozhoduje o tom, zda je nuklid stabilní?',['poměr počtu neutronů N a protonů Z (řeka stability)','jen počet elektronů','jen hmotnost obalu','barva prvku'],'Nuklidy mimo „řeku stability“ jsou radioaktivní.');
+Q('zareni','Přírodní radionuklidy jsou hlavně těžké prvky s protonovým číslem:',['82 < Z < 92','1 < Z < 10','20 < Z < 30','Z > 100'],'V PSP mezi olovem a uranem.');
+Q('zareni','Umělá radioaktivita vzniká:',['ozařováním stabilních jader částicemi, např. v reaktoru','samovolným rozpadem jader v přírodě','chemickou reakcí sloučenin','ohřevem nad 1000 °C'],'Původně stabilní jádro se po bombardování může stát radioaktivním.');
+Q('zareni','Po α rozpadu se prvek v periodické soustavě posune o:',['2 místa vlevo','1 místo vpravo','2 místa vpravo','1 místo vlevo'],'Z klesne o 2.');
+Q('zareni','Po β^− rozpadu se prvek v periodické soustavě posune o:',['1 místo vpravo','1 místo vlevo','2 místa vlevo','o nic'],'Z vzroste o 1.');
+Q('zareni','Po β^+ rozpadu se prvek v periodické soustavě posune o:',['1 místo vlevo','1 místo vpravo','2 místa vpravo','o nic'],'Proton se změní na neutron, Z klesne o 1.');
+TF('zareni','Rozpad α je typický pro přeměny jader těžkých prvků.',true,'Jádra těžkých prvků jako U, Th a Ra vyzařují α.');
+TF('zareni','Podstatou záření α je proud kladně nabitých jader tritia.',false,'Záření α tvoří jádra helia.');
+TF('zareni','Záření β^+ je tvořeno proudem rychle letících protonů.',false,'β^+ tvoří pozitrony.');
+TF('zareni','Záření γ je elektromagnetické vlnění s velmi krátkou vlnovou délkou a velmi vysokou energií.',true,'Jde o fotonové záření z jader.');
+Q('premeny','{230|90|Th} se rozpadne na {226|88|Ra}. Který druh záření se vyzáří?',['α','β^−','β^+','γ'],'A klesne o 4 a Z o 2, to je α.');
+Q('premeny','{14|6|C} se přemění na {14|7|N}. Jde o:',['β^−','α','β^+','γ'],'A stejné, Z o 1 vyšší: β^−.');
+Q('premeny','{22|11|Na} se přemění na {22|10|Ne}. Jde o:',['β^+','β^−','α','γ'],'A stejné, Z o 1 nižší: β^+ (vyletí pozitron).');
+Q('premeny','Který prvek vznikne β^− rozpadem {210|83|Bi}?',['polonium (Po)','olovo (Pb)','thallium (Tl)','astat (At)'],'Z = 83 + 1 = 84 je polonium.');
+Q('premeny','Který prvek vznikne α rozpadem {226|88|Ra}?',['radon (Rn)','francium (Fr)','thorium (Th)','polonium (Po)'],'Z = 88 − 2 = 86 je radon.');
+Q('premeny','Doplňte: {14|7|N} + {4|2|He} → {1|1|H} + ?',['{17|8|O}','{16|8|O}','{18|9|F}','{17|7|N}'],'A: 14 + 4 − 1 = 17, Z: 7 + 2 − 1 = 8. Rutherfordova transmutace.');
+Q('premeny','Doplňte: ? → {11|5|B} + {0|−1|e}',['{11|4|Be}','{11|6|C}','{10|5|B}','{12|5|B}'],'Rodič má stejné A a Z o 1 nižší: Z = 4, Be.');
+Q('premeny','Doplňte: {21|10|Ne} + {1|1|p} → ? + {4|2|He}',['{18|9|F}','{18|8|O}','{17|9|F}','{19|9|F}'],'A: 21 + 1 − 4 = 18, Z: 10 + 1 − 2 = 9.');
+Q('premeny','Doplňte: ? → {234|92|U} + {0|−1|e}',['{234|91|Pa}','{234|93|Np}','{238|94|Pu}','{230|90|Th}'],'Při β^− roste Z, takže rodič má Z = 91.');
+Q('premeny','Doplňte: {30|15|P} → ? + {4|2|α}',['{26|13|Al}','{26|14|Si}','{34|17|Cl}','{30|13|Al}'],'A: 30 − 4 = 26, Z: 15 − 2 = 13.');
+Q('premeny','Doplňte: ? → {90|36|Kr} + {0|−1|e}',['{90|35|Br}','{90|37|Rb}','{94|38|Sr}','{86|34|Se}'],'Rodič má Z o 1 nižší: 35.');
+Q('premeny','{80|35|Br} se rozpadá β^−. Který nuklid vznikne?',['{80|36|Kr}','{80|34|Se}','{76|33|As}','{79|35|Br}'],'Z + 1 = 36, A zůstane.');
+Q('premeny','{235|92|U} + {1|0|n} → {141|56|Ba} + {92|36|Kr} + x·n. Kolik neutronů x vznikne?',['3','1','2','4'],'A: 235 + 1 = 236 a 141 + 92 = 233, zbývají 3 neutrony.');
+Q('premeny','Co je podmínkou řetězové štěpné reakce?',['aspoň 1 neutron z každého štěpení vyvolá další štěpení','štěpení musí probíhat při velmi nízkých teplotách','nesmí vznikat žádné neutrony','jádra musí být lehčí než helium'],'Jinak by reakce zanikla.');
+Q('premeny','Termonukleární fúze je:',['slučování lehkých jader za vysokých teplot, uvolní se energie','štěpení těžkého jádra pomalými neutrony','rozpad jádra na čtyři neutrony','vyzáření fotonu z obalu'],'Probíhá ve hvězdách, včetně Slunce.');
+Q('premeny','Kolik rozpadů α a β^− proběhne v řadě {238|92|U} → {206|82|Pb}?',['8 α a 6 β^−','6 α a 8 β^−','4 α a 2 β^−','10 α a 4 β^−'],'ΔA = 32, tedy 8α. Z klesne o 16, ale má klesnout o 10, takže 6 β^−.');
+Q('premeny','Čtyři rozpady α a dva β^− vychází z {238|92|U}. Konečný produkt je:',['{222|86|Rn}','{226|88|Ra}','{230|90|Th}','{206|82|Pb}'],'A: 238 − 16 = 222, Z: 92 − 8 + 2 = 86.');
+Q('premeny','Přírodní rozpadové řady končí izotopem:',['olova','thallia','rtuti','bismutu'],'Tři přírodní řady vedou k olovu, umělá z {237|93|Np} končí u thallia.');
+
+/* doplnění: nuklidy */
+Q('nuklidy','Kolik neutronů má nuklid {14|6|C}?',['8','6','14','20'],'N = A − Z = 14 − 6 = 8.');
+Q('nuklidy','Kolik protonů, neutronů a elektronů má neutrální atom {238|92|U}?',['92 p, 146 n, 92 e','92 p, 238 n, 92 e','146 p, 92 n, 146 e','238 p, 92 n, 238 e'],'p = e = Z = 92, n = 238 − 92 = 146.');
+Q('nuklidy','Nuklidy se stejným nukleonovým číslem, ale různým protonovým číslem jsou:',['izobary','izotopy','izotony','izomery'],'Stejné A = izobary.');
+Q('nuklidy','Izotony mají stejné:',['neutronové číslo','protonové číslo','nukleonové číslo','elektronové obaly'],'Izo-ton: stejné N.');
+Q('nuklidy','Protium, deuterium a tritium jsou:',['izotopy vodíku','izobary','izotony','tři různé prvky'],'Všechny mají Z = 1, liší se počtem neutronů (0, 1, 2).');
+Q('nuklidy','Nukleonové číslo A je:',['součet protonů a neutronů','počet protonů','počet neutronů','počet elektronů'],'A = Z + N.');
+Q('nuklidy','Prvek je množina atomů se stejným:',['protonovým číslem','nukleonovým číslem','neutronovým číslem','počtem orbitalů'],'Počet protonů určuje prvek.');
+Q('nuklidy','Kolik protonů, neutronů a elektronů má iont {27|13|Al}^{3+}?',['13 p, 14 n, 10 e','13 p, 14 n, 16 e','13 p, 27 n, 10 e','10 p, 14 n, 13 e'],'p = 13, n = 14, elektronů 13 − 3 = 10.');
+
+/* ===== models: shared helpers ===== */
+const ELSYM='H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U'.split(' ');
+const ELNAME='vodík,helium,lithium,beryllium,bor,uhlík,dusík,kyslík,fluor,neon,sodík,hořčík,hliník,křemík,fosfor,síra,chlor,argon,draslík,vápník,skandium,titan,vanad,chrom,mangan,železo,kobalt,nikl,měď,zinek,gallium,germanium,arsen,selen,brom,krypton,rubidium,stroncium,yttrium,zirkonium,niob,molybden,technecium,ruthenium,rhodium,palladium,stříbro,kadmium,indium,cín,antimon,tellur,jod,xenon,cesium,baryum,lanthan,cer,praseodym,neodym,promethium,samarium,europium,gadolinium,terbium,dysprosium,holmium,erbium,thulium,ytterbium,lutecium,hafnium,tantal,wolfram,rhenium,osmium,iridium,platina,zlato,rtuť,thallium,olovo,bismut,polonium,astat,radon,francium,radium,aktinium,thorium,protaktinium,uran'.split(',');
+const ELMASS=[1,4,7,9,11,12,14,16,19,20,23,24,27,28,31,32,35,40,39,40,45,48,51,52,55,56,59,58,63,64,69,74,75,80,79,84,85,88,89,90,93,98,98,102,103,106,107,114,115,120,121,130,127,132];
+const SHELLN='KLMNOPQ';
+const ORDER=['1s','2s','2p','3s','3p','4s','3d','4p','5s','4d','5p','6s','4f','5d','6p','7s','5f','6d','7p'];
+const CAP={s:2,p:6,d:10,f:14}, LNUM={s:0,p:1,d:2,f:3};
+const EXC={24:{'4s':1,'3d':5},29:{'4s':1,'3d':10},41:{'5s':1,'4d':4},42:{'5s':1,'4d':5},44:{'5s':1,'4d':7},45:{'5s':1,'4d':8},46:{'5s':0,'4d':10},47:{'5s':1,'4d':10}};
+const NOBLE=[[2,'He'],[10,'Ne'],[18,'Ar'],[36,'Kr'],[54,'Xe']];
+/* electron configuration as {sub:'3d',n,l,c}; ne = number of electrons, z = atomic number (for exceptions of neutral atoms) */
+function econf(ne,z){
+  let left=ne;const cnt={};
+  for(const s of ORDER){const c=Math.min(CAP[s[1]],left);cnt[s]=c;left-=c;if(left<=0)break}
+  if(ne===z&&EXC[z])Object.assign(cnt,EXC[z]);
+  return cnt;
+}
+const subList=cnt=>Object.keys(cnt).filter(k=>cnt[k]>0||false).map(k=>({sub:k,n:+k[0],l:k[1],c:cnt[k]}));
+const byN=a=>a.slice().sort((x,y)=>x.n-y.n||LNUM[x.l]-LNUM[y.l]);
+/* element + charge → electron counts per subshell (cations lose electrons from the highest n first, highest l first) */
+function ionConf(z,q){
+  const ne=z-q; if(ne<1)return {};
+  let cnt=econf(z,z);
+  if(q>0){
+    for(let k=0;k<q;k++){
+      const occ=subList(cnt);const nmax=Math.max(...occ.map(o=>o.n));
+      const cand=occ.filter(o=>o.n===nmax).sort((a,b)=>LNUM[b.l]-LNUM[a.l])[0];
+      cnt[cand.sub]--;
+    }
+  } else if(q<0){cnt=econf(ne,-1)}
+  return cnt;
+}
+function fmtConf(list){return list.map(o=>`${o.sub}^${o.c}`).join(' ')}
+function shortConf(cnt,ne,isIon){
+  const ex=NOBLE.find(n=>n[0]===ne);if(ex&&isIon)return {txt:`[${ex[1]}]`,core:ex[1]};
+  let core=null;for(const [z,s] of NOBLE)if(z<ne)core=[z,s];
+  if(!core)return {txt:fmtConf(byN(subList(cnt))),core:null};
+  const cc=econf(core[0],core[0]);const rest={};
+  for(const k in cnt){const r=cnt[k]-(cc[k]||0);if(r>0)rest[k]=r}
+  for(const k in cc){if((cnt[k]||0)<cc[k])return {txt:fmtConf(byN(subList(cnt))),core:null}}
+  return {txt:`[${core[1]}] `+fmtConf(byN(subList(rest))),core:core[1]};
+}
+/* excitation inside the valence shell: promote one electron from the nearest paired orbital to the nearest empty orbital */
+function exciteSteps(cnt,steps){
+  cnt=Object.assign({},cnt);const occ=subList(cnt);if(!occ.length)return cnt;
+  const n=Math.max(...occ.map(o=>o.n));
+  const ls=['s','p','d'].filter(l=>LNUM[l]<=n-1);
+  for(let s=0;s<steps;s++){
+    let best=null;
+    for(let i=0;i<ls.length;i++)for(let j=i+1;j<ls.length;j++){
+      const a=n+ls[i],b=n+ls[j],no_a=2*LNUM[ls[i]]+1,no_b=2*LNUM[ls[j]]+1;
+      if((cnt[a]||0)>no_a&&(cnt[b]||0)<no_b){const d=j-i;if(!best||d<best.d||(d===best.d&&i>best.i))best={a,b,i,d}}
+    }
+    if(!best)return {cnt,done:s,max:true};
+    cnt[best.a]--;cnt[best.b]=(cnt[best.b]||0)+1;
+  }
+  return {cnt,done:steps,max:false};
+}
+function canExcite(cnt,steps){const r=exciteSteps(cnt,steps+1);return !r.max}
+
+/* ===== canvas + theme ===== */
+let _cols=null;
+function cols(){
+  if(_cols)return _cols;const cs=getComputedStyle(document.documentElement),g=n=>cs.getPropertyValue(n).trim();
+  return _cols={fg:g('--fg'),fg2:g('--fg-2'),line:g('--line'),accent:g('--accent'),proton:g('--proton'),neutron:g('--neutron'),electron:g('--electron'),photon:g('--photon'),surface:g('--surface'),bg:g('--bg'),ok:g('--ok')};
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{_cols=null});
+new MutationObserver(()=>{_cols=null}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme','class','style']});
+function fitCv(c){
+  const dpr=Math.min(devicePixelRatio||1,2),w=c.clientWidth,h=c.clientHeight;
+  if(!w||!h)return null;
+  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr)}
+  const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);return {x,w,h};
+}
+const TAU=Math.PI*2, easeOut=t=>1-Math.pow(1-t,4), clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function rgba(hex,a){ // hex or rgb() string → rgba with alpha
+  if(hex[0]==='#'){let h=hex.slice(1);if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return `rgba(${n>>16},${n>>8&255},${n&255},${a})`}
+  return hex.replace(/rgba?\(([^)]+)\)/,(m,p)=>`rgba(${p.split(',').slice(0,3).join(',')},${a})`);
+}
+
+/* ===== registry + loop ===== */
+const Models=(()=>{
+  const P={};let active=null,heroCv=null,raf=0,last=0;
+  const segs=[['shell','Obal'],['orb','Orbitaly'],['nuc','Jádro'],['half','Poločas']];
+  let cur='shell',labActive=false,root=null;
+  function loop(t){
+    raf=0;const dt=Math.min(.05,(t-last)/1000||0);last=t;
+    if(labActive&&P[cur]&&P[cur].draw)P[cur].draw(t/1000,dt);
+    if(heroCv)drawHero(t/1000);
+    if(labActive||heroCv)raf=requestAnimationFrame(loop);
+  }
+  function kick(){if(!raf)raf=requestAnimationFrame(loop)}
+  function show(id){
+    if(P[cur]&&P[cur].leave)P[cur].leave();
+    cur=id;
+    $$('#labSeg button',root).forEach(b=>b.setAttribute('aria-selected',b.dataset.p===id));
+    for(const k in P){const el=$('#lab-'+k,root);if(el)el.hidden=k!==id}
+    if(P[id].enter)P[id].enter();kick();
+  }
+  function init(r){
+    root=r;
+    root.innerHTML=`<div class="stack"><div class="seg" id="labSeg" role="tablist">${segs.map(s=>`<button role="tab" data-p="${s[0]}" aria-selected="${s[0]==='shell'}">${s[1]}</button>`).join('')}</div>${segs.map(s=>`<div id="lab-${s[0]}" ${s[0]==='shell'?'':'hidden'}></div>`).join('')}</div>`;
+    for(const k in P)P[k].mount($('#lab-'+k,root));
+    $$('#labSeg button',root).forEach(b=>b.onclick=()=>show(b.dataset.p));
+  }
+  function setActive(on){labActive=on;if(on){if(P[cur].enter)P[cur].enter();kick()}else if(P[cur]&&P[cur].leave)P[cur].leave()}
+  function hero(cv){heroCv=cv;if(cv){if(reduced()){heroStatic=true}kick()}}
+  let heroStatic=false;
+  function drawHero(t){
+    const f=fitCv(heroCv);if(!f)return;const {x,w,h}=f,c=cols();x.clearRect(0,0,w,h);
+    const cx=w/2,cy=h/2,R=Math.min(w,h)*.46;
+    x.lineWidth=1.2;
+    for(let i=0;i<3;i++){
+      const rot=i*Math.PI/3+ .0;x.save();x.translate(cx,cy);x.rotate(rot);
+      x.strokeStyle=rgba(c.accent,.55);x.beginPath();x.ellipse(0,0,R,R*.36,0,0,TAU);x.stroke();
+      const a=(reduced()?i*2:t*(.9+i*.25))+i*2.1;
+      x.fillStyle=c.electron;x.beginPath();x.arc(Math.cos(a)*R,Math.sin(a)*R*.36,4.2,0,TAU);x.fill();
+      x.restore();
+    }
+    const g=x.createRadialGradient(cx,cy,0,cx,cy,R*.22);g.addColorStop(0,c.proton);g.addColorStop(1,rgba(c.proton,0));
+    x.fillStyle=g;x.beginPath();x.arc(cx,cy,R*.22,0,TAU);x.fill();
+    x.fillStyle=c.proton;x.beginPath();x.arc(cx-3,cy-2,5,0,TAU);x.fill();x.fillStyle=c.neutron;x.beginPath();x.arc(cx+4,cy+2,5,0,TAU);x.fill();
+    if(reduced()){heroCv=null}
+  }
+  return {reg:(k,p)=>{P[k]=p},init,setActive,hero,kick,P};
+})();
+
+/* ===== panel: Bohr model + electron configuration ===== */
+Models.reg('shell',(()=>{
+  let Z=11,q=0,exc=0,els=[],root,cv,J={ph:'idle',t0:0};
+  const sgn=q=>q===0?'':(Math.abs(q)>1?Math.abs(q):'')+(q>0?'+':'−');
+  const shells=()=>{const cnt=ionConf(Z,q),by={};subList(cnt).forEach(o=>by[o.n]=(by[o.n]||0)+o.c);return by};
+  function rebuild(){
+    const by=shells();els=[];J={ph:'idle',t0:0};
+    for(const n in by){const k=+n,c=by[n],off=Math.random()*TAU;for(let i=0;i<c;i++)els.push({sh:k,ang:off+i*TAU/c,jump:false})}
+    setBtns();
+  }
+  const maxSh=()=>Math.max(...Object.keys(shells()).map(Number));
+  const omega=s=>reduced()?0:1.5/Math.pow(s,1.15);
+  function ringR(k,ns,R){return R*(.2+.8*k/ns)}
+  function info(){
+    const ne=Z-q,A=ELMASS[Z-1],N=A-Z,by=shells(),ks=Object.keys(by).map(Number),vs=Math.max(...ks);
+    $('#shInfo',root).innerHTML=`<div class="big-el"><span class="sym">${fm(ELSYM[Z-1]+(q?'^{'+sgn(q)+'}':''))}</span><div><div style="font-family:var(--f-display);font-weight:700;font-size:1.25rem">${ELNAME[Z-1]}${q?(q>0?' (kationt)':' (anion)'):''}</div><div class="muted mono" style="font-size:.82rem">Z = ${Z}, A ≈ ${A}</div></div></div>
+     <div class="row"><span class="pill" style="background:color-mix(in srgb,var(--proton) 18%,transparent);color:var(--proton)">${Z} p^+</span><span class="pill" style="background:color-mix(in srgb,var(--neutron) 22%,transparent);color:var(--fg)">${N} n^0</span><span class="pill">${ne} e^−</span></div>
+     <div class="muted" style="font-size:.9rem">${ks.map(k=>`<b>${SHELLN[k-1]}</b> ${by[k]}`).join(' · ')}</div>
+     <div style="font-size:.92rem">Valenční vrstva: <b>${SHELLN[vs-1]}</b> (n = ${vs}), <b>${by[vs]}</b> e^−</div>
+     <div class="legend"><span><i style="background:var(--proton)"></i>proton</span><span><i style="background:var(--neutron)"></i>neutron</span><span><i style="background:var(--electron)"></i>elektron</span></div>`
+     .replace(/\^(\+|−|0)/g,'<sup>$1</sup>');
+  }
+  function cfg(){
+    const base=ionConf(Z,q),ne=Z-q;
+    const mx=exciteSteps(base,exc);const cnt=mx.cnt;
+    const full=byN(subList(cnt)),sh=shortConf(cnt,ne,q!==0&&exc===0);
+    const vn=Math.max(...subList(base).map(o=>o.n));
+    const view=new Set(subList(cnt).map(o=>o.sub));
+    ['s','p','d'].filter(l=>LNUM[l]<=vn-1).forEach(l=>view.add(vn+l));
+    const subs=[...view].map(k=>({sub:k,n:+k[0],l:k[1],c:cnt[k]||0}));
+    const boxes=byN(subs).map(o=>{const no=2*LNUM[o.l]+1;
+      return `<div class="sub"><span class="nm">${fm(o.sub+"^"+o.c)}</span><div class="bs">${Array.from({length:no},(_,i)=>`<span class="bxo${o.n===vn?' v':''}">${o.c>i?(o.c>no+i?'↑↓':'↑'):''}</span>`).join('')}</div></div>`}).join('');
+    const can=canExcite(base,exc);
+    $('#shCfg',root).innerHTML=`<h2 class="h-sec">Elektronová konfigurace${exc?` <span class="pill" style="vertical-align:2px">${exc}. excitovaný stav</span>`:''}</h2>
+     <div><div class="eyebrow">Úplná</div><div class="cfg">${fm(fmtConf(full))}</div></div>
+     <div><div class="eyebrow">Zkrácená (vzácný plyn)</div><div class="cfg">${fm(sh.txt)}</div></div>
+     <div><div class="eyebrow">Pořadí zaplňování (výstavbový princip)</div><div class="cfg">${fm(subList(base).map(o=>`${o.sub}^${o.c}`).join(' → '))}</div></div>
+     <div><div class="eyebrow" style="margin-bottom:6px">Rámečkový diagram, valenční vrstva zvýrazněna</div><div class="boxes">${boxes}</div></div>
+     <div class="row"><button class="btn sm" id="exBase" ${exc?'':'disabled'}>Základní stav</button><button class="btn sm pri" id="exUp" ${can?'':'disabled'}>Excitovat o jeden elektron</button>
+     ${!can&&!exc?'<span class="muted" style="font-size:.84rem">Ve valenční sféře není volný orbital, kam by elektron mohl přeskočit.</span>':''}</div>`;
+    $('#exBase',root).onclick=()=>{exc=0;cfg()};$('#exUp',root).onclick=()=>{exc++;cfg()};
+  }
+  function setBtns(){
+    const a=$('#jUp',root),b=$('#jDown',root);if(!a)return;
+    a.disabled=J.ph!=='idle';b.disabled=J.ph!=='excited';
+  }
+  function update(){
+    $('#shZv',root).textContent=Z;$('#shZ',root).value=Z;$('#shSel',root).value=Z;
+    $$('#shQ button',root).forEach(b=>{const v=+b.dataset.q;b.setAttribute('aria-selected',v===q);b.disabled=Z-v<1});
+    info();cfg();rebuild();
+  }
+  function setZ(z){Z=clamp(z,1,54);exc=0;if(Z-q<1)q=0;update()}
+  /* jump / photon state machine */
+  function pickElectron(){const k=maxSh();const c=els.filter(e=>e.sh===k);return c[0]}
+  function startUp(){if(J.ph!=='idle')return;const e=pickElectron();J={ph:'in',t0:performance.now(),e};e.jump=true;if(reduced()){J.ph='excited';e.sh2=e.sh+1;e.prog=1}setBtns()}
+  function startDown(){if(J.ph!=='excited')return;J={ph:'down',t0:performance.now(),e:J.e};if(reduced()){J.ph='idle';J.e.jump=false;J.e.prog=0}setBtns()}
+  function photon(x,A,B,head,len,c){
+    const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,px=-uy,py=ux;
+    x.strokeStyle=c.photon;x.lineWidth=2.4;x.lineCap='round';x.beginPath();
+    for(let s=Math.max(0,head-len);s<=Math.min(L,head);s+=2){
+      const env=Math.sin(clamp((s-(head-len))/len,0,1)*Math.PI),off=Math.sin(s/3.2)*7*env;
+      const X=A.x+ux*s+px*off,Y=A.y+uy*s+py*off;s<=Math.max(0,head-len)+.01?x.moveTo(X,Y):x.lineTo(X,Y)}
+    x.stroke();
+  }
+  function draw(t,dt){
+    const f=fitCv(cv);if(!f)return;const {x,w,h}=f,c=cols();x.clearRect(0,0,w,h);
+    const cx=w/2,cy=h/2,R=Math.min(w,h)/2-16,ms=maxSh(),ns=ms+1;
+    const now=performance.now();
+    /* rings */
+    x.font='500 11px '+getComputedStyle(document.body).getPropertyValue('--f-mono');x.textAlign='center';
+    for(let k=1;k<=ns;k++){const r=ringR(k,ns,R);x.strokeStyle=k<=ms?rgba(c.fg2,.45):rgba(c.fg2,.22);x.setLineDash(k<=ms?[]:[4,5]);x.lineWidth=1.2;x.beginPath();x.arc(cx,cy,r,0,TAU);x.stroke();
+      x.fillStyle=c.fg2;x.fillText(SHELLN[k-1],cx,cy-r-4)}
+    x.setLineDash([]);
+    /* nucleus */
+    const nuc=Math.min(Z+ELMASS[Z-1]-Z,16),zr=Z/ELMASS[Z-1];
+    const g=x.createRadialGradient(cx,cy,0,cx,cy,R*.2);g.addColorStop(0,rgba(c.proton,.5));g.addColorStop(1,rgba(c.proton,0));x.fillStyle=g;x.beginPath();x.arc(cx,cy,R*.2,0,TAU);x.fill();
+    const nr=Math.max(3.4,R*.034);
+    for(let i=0;i<nuc;i++){const a=i*2.399,rr=Math.sqrt((i+.5)/nuc)*R*.085;x.fillStyle=(i/nuc<zr)?c.proton:c.neutron;x.beginPath();x.arc(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,nr,0,TAU);x.fill()}
+    /* state machine */
+    let phot=null;
+    if(J.ph==='in'){const p=(now-J.t0)/800;const pred=J.e.ang+omega(J.e.sh)*.8,r=ringR(J.e.sh,ns,R),E={x:cx+Math.cos(pred)*r,y:cy+Math.sin(pred)*r};
+      phot={A:{x:6,y:E.y*.4+cy*.6},B:E,head:easeOut(clamp(p,0,1))*Math.hypot(E.x-6,E.y-(E.y*.4+cy*.6)),len:70};
+      if(p>=1){J.ph='up';J.t0=now;J.e.sh2=J.e.sh+1;setBtns()}}
+    else if(J.ph==='up'){const p=clamp((now-J.t0)/650,0,1);J.e.prog=easeOut(p);if(p>=1){J.ph='excited';setBtns()}}
+    else if(J.ph==='down'){const p=clamp((now-J.t0)/650,0,1);J.e.prog=1-easeOut(p);if(p>=1){J.ph='out';J.t0=now;J.e.jump=false;J.e.prog=0;const r=ringR(J.e.sh,ns,R);J.out={x:cx+Math.cos(J.e.ang)*r,y:cy+Math.sin(J.e.ang)*r};setBtns()}}
+    else if(J.ph==='out'){const p=clamp((now-J.t0)/900,0,1),d=Math.hypot(J.out.x-cx,J.out.y-cy)||1,u={x:(J.out.x-cx)/d,y:(J.out.y-cy)/d};
+      const B={x:J.out.x+u.x*R*1.6,y:J.out.y+u.y*R*1.6};phot={A:J.out,B,head:easeOut(p)*R*1.6+30,len:70};if(p>=1){J.ph='idle';setBtns()}}
+    /* electrons */
+    for(const e of els){
+      const sh=e.jump?e.sh+(e.prog||0):e.sh;
+      e.ang+=omega(sh)*dt;
+      const r=e.jump?ringR(e.sh,ns,R)+((e.prog||0))*(ringR(e.sh+1,ns,R)-ringR(e.sh,ns,R)):ringR(e.sh,ns,R);
+      const ex=cx+Math.cos(e.ang)*r,ey=cy+Math.sin(e.ang)*r;
+      x.fillStyle=rgba(c.electron,.2);x.beginPath();x.arc(ex,ey,9,0,TAU);x.fill();
+      x.fillStyle=c.electron;x.beginPath();x.arc(ex,ey,e.jump?5.6:4.6,0,TAU);x.fill();
+      if(e.jump&&J.ph!=='idle'){x.strokeStyle=c.photon;x.lineWidth=2;x.beginPath();x.arc(ex,ey,9,0,TAU);x.stroke()}
+    }
+    if(phot)photon(x,phot.A,phot.B,phot.head,phot.len,c);
+  }
+  function mount(el){
+    root=el;
+    el.innerHTML=`<div class="lab split"><div class="stack"><div class="cv sq" id="shCv"><canvas></canvas><span class="tag">Bohrův model</span></div>
+      <div class="row"><button class="btn" id="jUp">Pohltit foton</button><button class="btn" id="jDown" disabled>Vyzářit foton</button></div>
+      <p class="muted" style="font-size:.84rem">Elektron pohltí foton a přeskočí na vyšší hladinu. Při návratu na nižší hladinu foton vyzáří.</p></div>
+     <div class="stack"><div class="card stack">
+       <div class="field"><label for="shZ">Prvek: protonové číslo Z = <b id="shZv"></b></label><input type="range" id="shZ" min="1" max="54" value="11"></div>
+       <div class="row" style="flex-wrap:nowrap"><button class="btn sm" id="shPrev" aria-label="Předchozí prvek">‹</button><select id="shSel" aria-label="Prvek">${ELSYM.slice(0,54).map((s,i)=>`<option value="${i+1}">${i+1} · ${s} · ${ELNAME[i]}</option>`).join('')}</select><button class="btn sm" id="shNext" aria-label="Další prvek">›</button></div>
+       <div class="field"><label>Náboj částice</label><div class="seg" id="shQ">${[-3,-2,-1,0,1,2,3].map(v=>`<button data-q="${v}" aria-selected="${v===0}">${v>0?'+'+v:v<0?'−'+Math.abs(v):'0'}</button>`).join('')}</div></div>
+      </div><div class="card stack" id="shInfo"></div></div></div>
+      <div class="card stack" id="shCfg" style="margin-top:12px"></div>`;
+    cv=$('canvas',el);
+    $('#shZ',el).oninput=e=>setZ(+e.target.value);
+    $('#shSel',el).onchange=e=>setZ(+e.target.value);
+    $('#shPrev',el).onclick=()=>setZ(Z-1);$('#shNext',el).onclick=()=>setZ(Z+1);
+    $$('#shQ button',el).forEach(b=>b.onclick=()=>{q=+b.dataset.q;exc=0;update()});
+    $('#jUp',el).onclick=startUp;$('#jDown',el).onclick=startDown;
+    update();
+  }
+  return {mount,draw,enter(){},leave(){}};
+})());
+
+/* ===== panel: orbitals as rotating probability clouds ===== */
+Models.reg('orb',(()=>{
+  const ANG={s:()=>1,px:(x,y,z)=>x,py:(x,y,z)=>y,pz:(x,y,z)=>z,dz2:(x,y,z)=>2*z*z-x*x-y*y,dxz:(x,y,z)=>x*z,dyz:(x,y,z)=>y*z,dxy:(x,y,z)=>x*y,dx2:(x,y,z)=>x*x-y*y};
+  const RAD={'1s':[r=>r*r*Math.exp(-2*r),7],'2s':[r=>r*r*(2-r)*(2-r)*Math.exp(-r),24],'2p':[r=>Math.pow(r,4)*Math.exp(-r),28],'3d':[r=>Math.pow(r,6)*Math.exp(-2*r/3),60]};
+  const ORB={
+    '1s':{lab:'1s',rad:'1s',ang:'s',n:1,l:0,m:'0',shape:'koule'},
+    '2s':{lab:'2s',rad:'2s',ang:'s',n:2,l:0,m:'0',shape:'koule s uzlovou plochou uvnitř (zapni průřez)'},
+    '2px':{lab:'2p_{x}',rad:'2p',ang:'px',n:2,l:1,m:'−1 / +1',shape:'prostorová osmička podél osy x'},
+    '2py':{lab:'2p_{y}',rad:'2p',ang:'py',n:2,l:1,m:'−1 / +1',shape:'prostorová osmička podél osy y'},
+    '2pz':{lab:'2p_{z}',rad:'2p',ang:'pz',n:2,l:1,m:'0',shape:'prostorová osmička podél osy z'},
+    '3dz2':{lab:'3d_{z^2}',rad:'3d',ang:'dz2',n:3,l:2,m:'0',shape:'osmička s prstencem'},
+    '3dx2':{lab:'3d_{x^2−y^2}',rad:'3d',ang:'dx2',n:3,l:2,m:'−2 / +2',shape:'čtyřlístek v rovině xy, laloky na osách'},
+    '3dxy':{lab:'3d_{xy}',rad:'3d',ang:'dxy',n:3,l:2,m:'−2 / +2',shape:'čtyřlístek v rovině xy, laloky mezi osami'},
+    '3dxz':{lab:'3d_{xz}',rad:'3d',ang:'dxz',n:3,l:2,m:'−1 / +1',shape:'čtyřlístek v rovině xz'},
+    '3dyz':{lab:'3d_{yz}',rad:'3d',ang:'dyz',n:3,l:2,m:'−1 / +1',shape:'čtyřlístek v rovině yz'}
+  };
+  const GROUPS={p3:{lab:'všechny 2p',ids:['2px','2py','2pz'],info:'Tři degenerované orbitaly 2p: stejná energie, liší se orientací (m = −1, 0, +1). Každý je v jiné ose.',n:2,l:1,cnt:3,max:6},
+                d5:{lab:'všech pět 3d',ids:['3dz2','3dx2','3dxy','3dxz','3dyz'],info:'Pět degenerovaných orbitalů 3d (m = −2 až +2): čtyři čtyřlístky a jedna osmička s prstencem.',n:3,l:2,cnt:5,max:10}};
+  const PAL=['electron','proton','photon','ok','neutron'];
+  const cache={};let sel='2pz',fit=true,cut=false,tilt=.35,ay=0,vel=0,drag=false,lastX=0,root,cv,ref=null;
+  function gen(id,N){
+    const k=id+N;if(cache[k])return cache[k];
+    const o=ORB[id],[P,rmax]=RAD[o.rad],M=500,cdf=new Float32Array(M+1);let s=0;
+    for(let i=1;i<=M;i++){s+=P(i/M*rmax);cdf[i]=s}
+    for(let i=1;i<=M;i++)cdf[i]/=s;
+    const A=ANG[o.ang];let mx=0;
+    for(let i=0;i<5000;i++){const u=Math.random()*2-1,p=Math.random()*TAU,sq=Math.sqrt(1-u*u),a=A(sq*Math.cos(p),sq*Math.sin(p),u);mx=Math.max(mx,a*a)}
+    const X=new Float32Array(N),Y=new Float32Array(N),Zc=new Float32Array(N),G=new Uint8Array(N),rs=[];
+    let i=0,guard=0;
+    while(i<N&&guard++<N*400){
+      const u=Math.random()*2-1,p=Math.random()*TAU,sq=Math.sqrt(1-u*u),ux=sq*Math.cos(p),uy=sq*Math.sin(p),a=A(ux,uy,u);
+      if(Math.random()>a*a/mx)continue;
+      const r0=Math.random();let lo=0,hi=M;while(hi-lo>1){const mid=(lo+hi)>>1;cdf[mid]<r0?lo=mid:hi=mid}
+      let r=(hi/M)*rmax;if(o.ang!=='s'){const rp=o.rad==='2p'?4:9;r=rp*(.72+.38*Math.random())*Math.pow(Math.abs(a)/Math.sqrt(mx),.5)}
+      X[i]=ux*r;Y[i]=uy*r;Zc[i]=u*r;G[i]=a<0?1:0;rs.push(r);i++;
+    }
+    rs.sort((a,b)=>a-b);
+    return cache[k]={X,Y,Z:Zc,G,N:i,r95:rs[Math.floor(rs.length*.95)]||1};
+  }
+  const CL={};
+  function cloud(){
+    if(CL[sel])return CL[sel];
+    if(GROUPS[sel]){const parts=GROUPS[sel].ids.map(id=>gen(id,1300));
+      const N=parts.reduce((s,p)=>s+p.N,0),X=new Float32Array(N),Y=new Float32Array(N),Zc=new Float32Array(N),C=new Uint8Array(N);let o=0;
+      parts.forEach((p,ci)=>{X.set(p.X.subarray(0,p.N),o);Y.set(p.Y.subarray(0,p.N),o);Zc.set(p.Z.subarray(0,p.N),o);C.fill(ci,o,o+p.N);o+=p.N});
+      return CL[sel]={X,Y,Z:Zc,C,N,r95:Math.max(...parts.map(p=>p.r95)),multi:true}}
+    const p=gen(sel,3200);return CL[sel]={X:p.X,Y:p.Y,Z:p.Z,C:p.G,N:p.N,r95:p.r95,multi:false};
+  }
+  function info(){
+    const g=GROUPS[sel],o=ORB[sel];
+    const rows=g?[['n',g.n],['l',`${g.l} (${'spd'[g.l]})`],['Počet orbitalů',g.cnt],['Max. elektronů',g.max]]:
+      [['n',o.n],['l',`${o.l} (${'spd'[o.l]})`],['m',o.m],['Počet orbitalů typu '+(o.n+'spd'[o.l]),[1,3,5][o.l]],['Max. elektronů',[2,6,10][o.l]]];
+    $('#orInfo',root).innerHTML=`<div class="big-el"><span class="sym" style="font-size:2.2rem">${fm(g?g.lab:o.lab)}</span></div>
+      <p>${g?g.info:'Tvar: <b>'+o.shape+'</b>.'}</p>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">${rows.map(r=>`<div style="background:var(--surface-2);border-radius:12px;padding:8px 12px"><div class="eyebrow">${r[0]}</div><div class="mono" style="font-weight:500">${r[1]}</div></div>`).join('')}</div>
+      <div class="legend">${g?GROUPS[sel].ids.map((id,i)=>`<span><i style="background:var(--${['electron','proton','photon','ok','neutron'][i]})"></i>${fm(ORB[id].lab)}</span>`).join(''):'<span><i style="background:var(--electron)"></i>kladné znaménko vlnové funkce</span><span><i style="background:var(--proton)"></i>záporné znaménko (fáze)</span>'}</div>`;
+  }
+  function draw(t,dt){
+    const f=fitCv(cv);if(!f)return;const {x,w,h}=f,c=cols();x.clearRect(0,0,w,h);
+    if(!drag){if(Math.abs(vel)>.002){ay+=vel;vel*=.94}else if(!reduced())ay+=dt*.5}
+    const cl=cloud();
+    if(!ref)ref=gen('3dxy',3200).r95;
+    const unit=fit?cl.r95:ref,S=.3*Math.min(w,h)/1,cx=w/2,cy=h/2;
+    const ca=Math.cos(ay),sa=Math.sin(ay),cb=Math.cos(tilt),sb=Math.sin(tilt),N=cl.N,D=3.2;
+    if(!cl.PX||cl.PX.length<N){cl.PX=new Float32Array(N);cl.PY=new Float32Array(N);cl.BK=new Int8Array(N)}
+    const PX=cl.PX,PY=cl.PY,BK=cl.BK;
+    for(let i=0;i<N;i++){
+      const X=cl.X[i]/unit,Y=cl.Y[i]/unit,Zv=cl.Z[i]/unit;
+      const x1=X*ca+Zv*sa,z1=-X*sa+Zv*ca,y1=Y*cb-z1*sb,z2=Y*sb+z1*cb; /* rotate about Y, then tilt about X */
+      if(cut&&z2>0.02){BK[i]=-1;continue}
+      const pf=D/(D-z2*.5);PX[i]=cx+x1*pf*S;PY[i]=cy-y1*pf*S;
+      BK[i]=z2<-.4?0:z2<.4?1:2;
+    }
+    const sz=Math.max(1.8,Math.min(w,h)/200);
+    const colors=cl.multi?PAL.map(k=>c[k]):[c.electron,c.proton];
+    for(let g=0;g<colors.length;g++)for(let b=0;b<3;b++){
+      x.fillStyle=rgba(colors[g],[.2,.48,.85][b]);const q=sz*(b===2?1.2:1);
+      for(let i=0;i<N;i++)if(BK[i]===b&&cl.C[i]===g)x.fillRect(PX[i],PY[i],q,q);
+    }
+    const L=S*1.15;x.lineWidth=1;x.font='500 11px '+getComputedStyle(document.body).getPropertyValue('--f-mono');x.textAlign='center';
+    [['x',1,0,0],['y',0,1,0],['z',0,0,1]].forEach(a=>{
+      const x1=a[1]*ca+a[3]*sa,z1=-a[1]*sa+a[3]*ca,y1=a[2]*cb-z1*sb;
+      x.strokeStyle=rgba(c.fg2,.4);x.beginPath();x.moveTo(cx,cy);x.lineTo(cx+x1*L,cy-y1*L);x.stroke();
+      x.fillStyle=c.fg2;x.fillText(a[0],cx+x1*(L+10),cy-y1*(L+10)+4)});
+    x.fillStyle=c.fg;x.beginPath();x.arc(cx,cy,2.4,0,TAU);x.fill();
+  }
+  function mount(el){
+    root=el;
+    el.innerHTML=`<div class="lab split"><div class="stack"><div class="cv sq" id="orCv"><canvas></canvas><span class="tag">táhni prstem pro otáčení</span></div>
+      <div class="row"><button class="chip" id="orFit" aria-pressed="true">Vyplnit okno</button><button class="chip" id="orCut" aria-pressed="false">Průřez</button>
+      <div class="field" style="flex:1;min-width:150px"><label for="orTilt">Náklon</label><input type="range" id="orTilt" min="-90" max="90" value="20"></div></div></div>
+      <div class="stack"><div class="card stack"><div class="eyebrow">Vyber orbital</div><div class="row" id="orChips" style="gap:6px">${Object.keys(ORB).map(k=>`<button class="chip" data-o="${k}" aria-pressed="${k===sel}">${fm(ORB[k].lab)}</button>`).join('')}${Object.keys(GROUPS).map(k=>`<button class="chip" data-o="${k}" aria-pressed="false">${GROUPS[k].lab}</button>`).join('')}</div></div>
+      <div class="card stack" id="orInfo"></div></div></div>`;
+    cv=$('canvas',el);
+    $$('#orChips .chip',el).forEach(b=>b.onclick=()=>{sel=b.dataset.o;$$('#orChips .chip',el).forEach(x=>x.setAttribute('aria-pressed',x===b));info()});
+    $('#orFit',el).onclick=e=>{fit=!fit;e.currentTarget.setAttribute('aria-pressed',fit);e.currentTarget.textContent=fit?'Vyplnit okno':'Skutečný poměr velikostí'};
+    $('#orCut',el).onclick=e=>{cut=!cut;e.currentTarget.setAttribute('aria-pressed',cut)};
+    $('#orTilt',el).oninput=e=>{tilt=+e.target.value*Math.PI/180};
+    tilt=20*Math.PI/180;
+    cv.addEventListener('pointerdown',e=>{drag=true;vel=0;lastX=e.clientX;cv.setPointerCapture(e.pointerId)});
+    cv.addEventListener('pointermove',e=>{if(!drag)return;const d=e.clientX-lastX;lastX=e.clientX;ay+=d*.012;vel=d*.012});
+    const up=()=>{drag=false};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+    info();
+  }
+  return {mount,draw,enter(){},leave(){}};
+})());
+
+/* ===== panel: nucleus and radioactive decay ===== */
+Models.reg('nuc',(()=>{
+  const EXTRA=[['Np','neptunium'],['Pu','plutonium']];
+  const sym=z=>z<=92?ELSYM[z-1]:EXTRA[z-93][0], nm=z=>z<=92?ELNAME[z-1]:EXTRA[z-93][1];
+  const PRE=[[238,92],[226,88],[14,6],[60,27],[22,11],[30,15]];
+  const SERIES=['a','b-','b-','a','a','a','a','a','b-','b-','a','b-','b-','a'];
+  const KIND={'a':{lab:'α',p:'{4|2|He}',dA:-4,dZ:-2,txt:'Z klesne o 2 a A o 4, nuklid se posune o 2 místa vlevo.'},
+              'b-':{lab:'β^−',p:'{0|−1|e}',dA:0,dZ:1,txt:'Neutron se změní na proton. Z vzroste o 1, A zůstane, posun o 1 místo vpravo.'},
+              'b+':{lab:'β^+',p:'{0|+1|e}',dA:0,dZ:-1,txt:'Proton se změní na neutron. Z klesne o 1, A zůstane, posun o 1 místo vlevo.'},
+              'g':{lab:'γ',p:'γ',dA:0,dZ:0,txt:'Jádro vyzáří foton a přejde do nižšího energetického stavu. Z ani A se nemění.'}};
+  let A=238,Z=92,nucs=[],busy=false,ev=null,parts=[],rings=[],hist=[],run=null,root,cv,Rpx=0,last=null,counts={a:0,'b-':0};
+  const len=p=>Math.hypot(p[0],p[1],p[2]);
+  function sunflower(n){const out=[],a1=.8191725134,a2=.6710436067,a3=.5497004779;for(let i=0;i<n;i++){const u1=(.5+a1*(i+1))%1,u2=(.5+a2*(i+1))%1,u3=(.5+a3*(i+1))%1,r=Math.cbrt(u1),ct=1-2*u2,st=Math.sqrt(1-ct*ct),ph=u3*TAU;out.push([r*st*Math.cos(ph),r*ct,r*st*Math.sin(ph)])}return out}
+  function build(){
+    const types=shuffle([...Array(Z).fill('p'),...Array(A-Z).fill('n')]),pts=sunflower(A);
+    nucs=types.map((t,i)=>({t,pos:pts[i].slice(),tgt:pts[i].slice(),flash:0}));
+  }
+  function relayout(){
+    const pts=sunflower(nucs.length).sort((a,b)=>len(a)-len(b)),order=nucs.map((n,i)=>i).sort((i,j)=>len(nucs[i].pos)-len(nucs[j].pos));
+    order.forEach((ni,k)=>{nucs[ni].tgt=pts[k]});
+  }
+  function setNuclide(a,z){A=a;Z=z;build();ev=null;parts=[];rings=[];busy=false;hist=[];counts={a:0,'b-':0};eq(null);info();btns()}
+  function info(){
+    $('#nuInfo',root).innerHTML=`<div class="big-el"><span class="sym" style="font-size:2.6rem">${fm(`{${A}|${Z}|${sym(Z)}}`)}</span><div><div style="font-family:var(--f-display);font-weight:700;font-size:1.2rem">${nm(Z)}-${A}</div><div class="muted mono" style="font-size:.82rem">p = ${Z}, n = ${A-Z}, A = ${A}</div></div></div>
+     <div class="row" id="nuPre">${PRE.map(([a,z])=>`<button class="chip" data-a="${a}" data-z="${z}" aria-pressed="${a===A&&z===Z}">${fm(`{${a}|${z}|${sym(z)}}`)}</button>`).join('')}</div>`;
+    $$('#nuPre .chip',root).forEach(b=>b.onclick=()=>{stopRun();setNuclide(+b.dataset.a,+b.dataset.z)});
+  }
+  function eq(d){
+    const el=$('#nuEq',root);
+    if(!d){el.innerHTML='<p class="muted">Vyber druh rozpadu. Po animaci uvidíš jadernou rovnici a vzniklý nuklid.</p>';return}
+    el.innerHTML=`<div class="eq">${fm(`{${d.A0}|${d.Z0}|${sym(d.Z0)}}`)}<span class="arrow">→</span>${fm(`{${d.A1}|${d.Z1}|${sym(d.Z1)}}`)}<span class="arrow">+</span>${fm(KIND[d.k].p)}</div>
+     <p><b>${fm(KIND[d.k].lab)}</b>: ${KIND[d.k].txt}${d.k==='g'?'':` Vznikl prvek <b>${nm(d.Z1)}</b> (${sym(d.Z1)}).`}</p>`;
+  }
+  function hh(){
+    $('#nuHist',root).innerHTML=hist.length?hist.map(h=>`<span>${fm(h.k==='a'?'α':h.k==='b-'?'β^−':h.k==='b+'?'β^+':'γ')} → ${fm(`{${h.A}|${h.Z}|${sym(h.Z)}}`)}</span>`).join(''):'';
+    $('#nuCnt',root).textContent=(counts.a||counts['b-'])?`α: ${counts.a} · β⁻: ${counts['b-']}`:'';
+  }
+  function can(k){const N=A-Z;return k==='a'?(Z>2&&N>=2):k==='b-'?(N>=1&&Z<94):k==='b+'?Z>=2:true}
+  function btns(){$$('[data-k]',root).forEach(b=>b.disabled=busy||!can(b.dataset.k))}
+  /* ---- decay timeline ---- */
+  function begin(k){
+    if(busy||!can(k))return;busy=true;btns();
+    const idx=nucs.map((n,i)=>i).sort((i,j)=>len(nucs[j].pos)-len(nucs[i].pos));
+    ev={k,t0:performance.now(),dur:k==='a'?1900:k==='g'?1700:1700,fired:false};
+    if(k==='a'){const ps=idx.filter(i=>nucs[i].t==='p').slice(0,2),ns=idx.filter(i=>nucs[i].t==='n').slice(0,2);ev.ids=[...ps,...ns];
+      const c=[0,0,0];ev.ids.forEach(i=>{for(let j=0;j<3;j++)c[j]+=nucs[i].pos[j]/4});const l=len(c)||1,out=c.map(v=>v/l*1.12);
+      ev.ids.forEach((i,q)=>{nucs[i].tgt=[out[0]+(q%2?.05:-.05),out[1]+(q<2?.05:-.05),out[2]]})}
+    else if(k==='b-'||k==='b+'){const t=k==='b-'?'n':'p',c=idx.filter(i=>nucs[i].t===t).slice(0,Math.max(2,Math.round(nucs.length*.3)));ev.id=c[Math.random()*c.length|0];nucs[ev.id].flash=1}
+    if(reduced()){fire();finish()}
+  }
+  function screenOf(n){return {x:n.sx,y:n.sy}}
+  function fire(){
+    if(ev.fired)return;ev.fired=true;const k=ev.k,cx=cv.clientWidth/2,cy=cv.clientHeight/2;
+    const d={k,A0:A,Z0:Z};
+    if(k==='a'){
+      const pts=ev.ids.map(i=>nucs[i]),sx=pts.reduce((s,n)=>s+(n.sx||cx),0)/4,sy=pts.reduce((s,n)=>s+(n.sy||cy),0)/4;
+      const dx=sx-cx,dy=sy-cy,l=Math.hypot(dx,dy)||1;parts.push({k:'a',x0:sx,y0:sy,ux:dx/l,uy:dy/l,t0:performance.now(),dur:1100});
+      [...ev.ids].sort((a,b)=>b-a).forEach(i=>nucs.splice(i,1));relayout();A-=4;Z-=2;counts.a++;
+    } else if(k==='b-'||k==='b+'){
+      const n=nucs[ev.id],sx=n.sx||cx,sy=n.sy||cy,dx=sx-cx,dy=sy-cy,l=Math.hypot(dx,dy)||1;
+      parts.push({k:k==='b-'?'e-':'e+',x0:sx,y0:sy,ux:dx/l,uy:dy/l,t0:performance.now(),dur:1000});
+      n.t=k==='b-'?'p':'n';n.flash=1;Z+=k==='b-'?1:-1;if(k==='b-')counts['b-']++;
+    } else {rings.push({t0:performance.now()},{t0:performance.now()+250},{t0:performance.now()+500})}
+    d.A1=A;d.Z1=Z;hist.push({k,A,Z});eq(d);info();hh();
+  }
+  function finish(){ev=null;busy=false;btns();if(run!==null)stepRun()}
+  function stepRun(){
+    if(run>=SERIES.length){run=null;$('#nuSeries',root).textContent='Spustit řadu ²³⁸U → ²⁰⁶Pb';return}
+    const k=SERIES[run++];setTimeout(()=>{if(run!==null)begin(k)},reduced()?0:450);
+  }
+  function stopRun(){run=null;const b=$('#nuSeries',root);if(b)b.textContent='Spustit řadu ²³⁸U → ²⁰⁶Pb'}
+  function draw(t,dt){
+    const f=fitCv(cv);if(!f)return;const {x,w,h}=f,c=cols();x.clearRect(0,0,w,h);
+    const m=Math.min(w,h),cx=w/2,cy=h/2,now=performance.now();
+    const tR=.042*m*Math.cbrt(Math.max(nucs.length,4));Rpx+=(tR-Rpx)*(1-Math.exp(-dt*6));if(!Rpx)Rpx=tR;
+    const rn=.026*m,rot=reduced()?.6:t*.38,ca=Math.cos(rot),sa=Math.sin(rot),cb=Math.cos(.35),sb=Math.sin(.35),k=1-Math.exp(-dt*7);
+    /* timeline */
+    if(ev&&!reduced()){const p=(now-ev.t0)/ev.dur;
+      if(ev.k==='a'&&p>.3)fire();
+      if((ev.k==='b-'||ev.k==='b+')&&p>.22)fire();
+      if(ev.k==='g'&&p>.08)fire();
+      if(p>=1){fire();finish()}}
+    /* glow */
+    const gl=x.createRadialGradient(cx,cy,0,cx,cy,Rpx*1.8);gl.addColorStop(0,rgba(c.proton,.18));gl.addColorStop(1,rgba(c.proton,0));x.fillStyle=gl;x.beginPath();x.arc(cx,cy,Rpx*1.8,0,TAU);x.fill();
+    /* nucleons */
+    const pulse=ev&&ev.k==='g'?1+.14*Math.sin(clamp((now-ev.t0)/ev.dur,0,1)*Math.PI*6)*Math.sin(clamp((now-ev.t0)/ev.dur,0,1)*Math.PI):1;
+    for(let i=0;i<nucs.length;i++){const n=nucs[i];
+      for(let j=0;j<3;j++)n.pos[j]+=(n.tgt[j]-n.pos[j])*k;
+      const X=n.pos[0],Y=n.pos[1],Zv=n.pos[2],x1=X*ca+Zv*sa,z1=-X*sa+Zv*ca,y1=Y*cb-z1*sb,z2=Y*sb+z1*cb;
+      const jx=Math.sin(t*6+i*1.7)*.8,jy=Math.cos(t*5+i*2.3)*.8;
+      n.sx=cx+x1*Rpx*pulse+jx;n.sy=cy-y1*Rpx*pulse+jy;n.z=z2;
+    }
+    const order=nucs.map((n,i)=>i).sort((a,b)=>nucs[a].z-nucs[b].z);
+    for(const i of order){const n=nucs[i],depth=.78+.22*clamp(n.z,-1,1);
+      x.fillStyle=n.t==='p'?c.proton:c.neutron;x.globalAlpha=depth;x.beginPath();x.arc(n.sx,n.sy,rn*(1+.1*clamp(n.z,-1,1)),0,TAU);x.fill();
+      x.globalAlpha=1;x.strokeStyle=rgba(c.surface,.55);x.lineWidth=1;x.stroke();
+      if(n.flash>0){x.strokeStyle=rgba(c.photon,n.flash);x.lineWidth=2.4;x.beginPath();x.arc(n.sx,n.sy,rn*(1.4+(1-n.flash)*1.6),0,TAU);x.stroke();n.flash=Math.max(0,n.flash-dt*1.3)}}
+    /* gamma rings */
+    for(let r=rings.length-1;r>=0;r--){const p=(now-rings[r].t0)/1200;if(p<0)continue;if(p>1){rings.splice(r,1);continue}
+      x.strokeStyle=rgba(c.photon,.85*(1-p));x.lineWidth=2.4;x.beginPath();
+      const R0=Rpx+rn,R1=m*.5;for(let a=0;a<=TAU+.05;a+=.05){const rr=R0+(R1-R0)*easeOut(p)+Math.sin(a*14-p*20)*4*(1-p);a?x.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr):x.moveTo(cx+rr,cy)}x.stroke()}
+    /* emitted particles */
+    for(let i=parts.length-1;i>=0;i--){const q=parts[i],p=(now-q.t0)/q.dur;if(p>=1){parts.splice(i,1);continue}
+      const dist=easeOut(p)*m*.62,X=q.x0+q.ux*dist,Y=q.y0+q.uy*dist,al=1-clamp((p-.7)/.3,0,1);
+      x.globalAlpha=al;const tr=x.createLinearGradient(q.x0,q.y0,X,Y);tr.addColorStop(0,'transparent');tr.addColorStop(1,rgba(q.k==='a'?c.proton:q.k==='e-'?c.electron:c.photon,.7));
+      x.strokeStyle=tr;x.lineWidth=3;x.beginPath();x.moveTo(q.x0,q.y0);x.lineTo(X,Y);x.stroke();
+      if(q.k==='a'){[[-1,-1,'p'],[1,-1,'n'],[-1,1,'n'],[1,1,'p']].forEach(o=>{x.fillStyle=o[2]==='p'?c.proton:c.neutron;x.beginPath();x.arc(X+o[0]*rn*.62,Y+o[1]*rn*.62,rn*.62,0,TAU);x.fill()});
+        x.fillStyle=c.fg;x.font='700 15px '+getComputedStyle(document.body).getPropertyValue('--f-display');x.textAlign='center';x.fillText('α',X,Y-rn*1.6)}
+      else{x.fillStyle=q.k==='e-'?c.electron:c.photon;x.beginPath();x.arc(X,Y,rn*.52,0,TAU);x.fill();x.fillStyle=c.surface;x.font='700 13px '+getComputedStyle(document.body).getPropertyValue('--f-mono');x.textAlign='center';x.fillText(q.k==='e-'?'−':'+',X,Y+4.5)}
+      x.globalAlpha=1}
+  }
+  function mount(el){
+    root=el;
+    el.innerHTML=`<div class="lab split"><div class="stack"><div class="cv wd"><canvas></canvas><span class="tag">jádro: <span style="color:var(--proton)">●</span> proton <span style="color:var(--neutron)">●</span> neutron</span></div>
+      <div class="dec-btns">${['a','b-','b+','g'].map(k=>`<button class="btn" data-k="${k}">${fm(KIND[k].lab)} rozpad</button>`).join('')}</div></div>
+      <div class="stack"><div class="card stack" id="nuInfo"></div>
+       <div class="card stack"><h2 class="h-sec">Jaderná rovnice</h2><div id="nuEq"></div><div class="hist" id="nuHist"></div>
+        <div class="row"><button class="btn sm" id="nuSeries">Spustit řadu ²³⁸U → ²⁰⁶Pb</button><span class="mono muted" id="nuCnt" style="font-size:.85rem"></span></div></div></div></div>`;
+    cv=$('canvas',el);
+    $$('[data-k]',el).forEach(b=>b.onclick=()=>{stopRun();begin(b.dataset.k)});
+    $('#nuSeries',el).onclick=()=>{
+      if(run!==null){stopRun();return}
+      if(busy)return;setNuclide(238,92);run=0;$('#nuSeries',el).textContent='Zastavit řadu';stepRun();
+    };
+    setNuclide(238,92);
+  }
+  return {mount,draw,enter(){btns()},leave(){stopRun();if(ev){if(!ev.fired)fire();ev=null;busy=false;parts=[];rings=[];relayout();btns()}}};
+})());
+
+/* ===== panel: half-life ===== */
+Models.reg('half',(()=>{
+  const NN=128;let alive=[],k=0,root;
+  function reset(){alive=Array.from({length:NN},()=>true);k=0;render(true)}
+  function step(){
+    const idx=alive.map((a,i)=>a?i:-1).filter(i=>i>=0);if(idx.length<2)return;
+    shuffle(idx).slice(0,Math.floor(idx.length/2)).forEach(i=>alive[i]=false);k++;render(false);
+  }
+  const n=()=>alive.filter(Boolean).length;
+  function chart(){
+    const W=320,H=170,L=34,B=26,T=10,R=10,pw=W-L-R,ph=H-T-B,xs=v=>L+v/7*pw,ys=v=>T+ph-(v/NN)*ph;
+    let d='';for(let i=0;i<=140;i++){const v=i/20;d+=(i?'L':'M')+xs(v).toFixed(1)+' '+ys(NN*Math.pow(.5,v)).toFixed(1)}
+    const pts=Array.from({length:k+1},(_,i)=>[i,NN/Math.pow(2,i)]);
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Graf poklesu počtu jader" style="display:block">
+      ${[0,32,64,96,128].map(v=>`<line x1="${L}" x2="${W-R}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--line)"/><text x="${L-6}" y="${ys(v)+4}" text-anchor="end" font-size="10" fill="var(--fg-2)" font-family="var(--f-mono)">${v}</text>`).join('')}
+      ${[0,1,2,3,4,5,6,7].map(v=>`<text x="${xs(v)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--fg-2)" font-family="var(--f-mono)">${v}</text>`).join('')}
+      <path d="${d}" fill="none" stroke="var(--fg-2)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7"/>
+      <path d="${pts.map((p,i)=>(i?'L':'M')+xs(p[0]).toFixed(1)+' '+ys(p[1]).toFixed(1)).join('')}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round"/>
+      ${pts.map((p,i)=>`<circle cx="${xs(p[0])}" cy="${ys(p[1])}" r="${i===k?5.5:3.4}" fill="${i===k?'var(--accent)':'var(--surface)'}" stroke="var(--accent)" stroke-width="2"/>`).join('')}
+      <text x="${xs(3.5)}" y="${H-0}" text-anchor="middle" font-size="9.5" fill="var(--fg-2)">počet poločasů</text></svg>`;
+  }
+  function render(first){
+    const a=n();
+    if(first||!$('#hlDots',root).children.length){$('#hlDots',root).innerHTML=alive.map((_,i)=>`<i></i>`).join('')}
+    [...$('#hlDots',root).children].forEach((d,i)=>d.classList.toggle('gone',!alive[i]));
+    $('#hlStat',root).innerHTML=`<div class="kpi"><div class="v">${k}</div><div class="l">uplynulých poločasů</div></div><div class="kpi"><div class="v">${a}</div><div class="l">zbývá jader z ${NN}</div></div><div class="kpi"><div class="v">${(a/NN*100).toLocaleString('cs-CZ',{maximumFractionDigits:2})} %</div><div class="l">zbývá z původního množství</div></div>`;
+    $('#hlForm',root).innerHTML=fm(`N = N_{0} · (½)^{k} = ${NN} · (½)^${k} = <b>${a}</b>`.replace(/\(½\)\^\{k\}/,'(½)^{t/T}'));
+    $('#hlChart',root).innerHTML=chart();
+    $('#hlStep',root).disabled=a<2;
+  }
+  function calc(){
+    const N0=parseFloat($('#hcN',root).value.replace(',','.')),T=parseFloat($('#hcT',root).value.replace(',','.')),t=parseFloat($('#hct',root).value.replace(',','.'));
+    const out=$('#hcOut',root);
+    if(!(N0>=0)||!(T>0)||!(t>=0)){out.innerHTML='<span class="muted">Zadej kladná čísla (T musí být větší než 0).</span>';return}
+    const kk=t/T,N=N0*Math.pow(.5,kk),f=v=>v.toLocaleString('cs-CZ',{maximumFractionDigits:3});
+    out.innerHTML=`<div>Počet poločasů t / T = <b class="mono">${f(kk)}</b></div><div>Zbývá <b class="mono">${f(N)}</b> jader (<b class="mono">${f(N/N0*100||0)} %</b>)</div><div>Rozpadlo se <b class="mono">${f(N0-N)}</b> (<b class="mono">${f((1-N/N0)*100||0)} %</b>)</div>`;
+  }
+  function mount(el){
+    root=el;
+    el.innerHTML=`<style>
+      #hlDots{display:grid;grid-template-columns:repeat(16,1fr);gap:5px;padding:14px}
+      #hlDots i{aspect-ratio:1;border-radius:50%;background:var(--accent);transition:transform 480ms var(--ease-out),opacity 480ms,background 480ms;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+      #hlDots i.gone{transform:scale(.38);opacity:.35;background:var(--fg-2);box-shadow:none}
+      #hlStat{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+      #hlStat .kpi .v{font-size:1.5rem}
+      @media (prefers-reduced-motion:reduce){#hlDots i{transition:none}}
+    </style>
+    <div class="lab split"><div class="stack"><div class="card" style="padding:0"><div id="hlDots" aria-label="128 radioaktivních jader"></div></div>
+      <div class="row"><button class="btn pri" id="hlStep">Uplyne jeden poločas</button><button class="btn" id="hlReset">Znovu</button></div>
+      <div class="card stack"><div id="hlStat"></div><div class="mono" id="hlForm" style="font-size:.95rem"></div></div></div>
+     <div class="stack"><div class="card"><h2 class="h-sec" style="margin-bottom:6px">Pokles počtu jader</h2><div id="hlChart"></div><p class="muted" style="font-size:.84rem">Čárkovaně křivka N = N₀·(½)^(t/T), plná čára jsou tvoje kroky. Po 10 poločasech zbude méně než tisícina.</p></div>
+      <div class="card stack"><h2 class="h-sec">Kalkulačka</h2>
+       <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:8px"><div class="field"><label for="hcN">Počet jader N₀</label><input id="hcN" inputmode="decimal" value="3200"></div><div class="field"><label for="hcT">Poločas T</label><input id="hcT" inputmode="decimal" value="1"></div><div class="field"><label for="hct">Doba t</label><input id="hct" inputmode="decimal" value="6"></div></div>
+       <div class="row"><button class="chip" id="hcP1">3200 jader, 6 poločasů</button><button class="chip" id="hcP2">¼ zbývá, ¹⁴C (T = 5730)</button></div>
+       <div class="stack" id="hcOut" style="gap:4px"></div><p class="muted" style="font-size:.82rem">T a t zadej ve stejné jednotce (roky, dny, sekundy).</p></div></div></div>`;
+    $('#hlStep',el).onclick=step;$('#hlReset',el).onclick=reset;
+    ['hcN','hcT','hct'].forEach(id=>$('#'+id,el).oninput=calc);
+    $('#hcP1',el).onclick=()=>{$('#hcN',el).value=3200;$('#hcT',el).value=1;$('#hct',el).value=6;calc()};
+    $('#hcP2',el).onclick=()=>{$('#hcN',el).value=100;$('#hcT',el).value=5730;$('#hct',el).value=11460;calc()};
+    reset();calc();
+  }
+  return {mount,enter(){},leave(){}};
+})());
+
+/* ===== core ===== */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const rmq=matchMedia('(prefers-reduced-motion: reduce)'); const reduced=()=>rmq.matches;
+function fx(s){return String(s)
+  .replace(/\{([^|{}]*)\|([^|{}]*)\|([^{}]*)\}/g,(m,a,z,x)=>`<span class="nuc"><i><b>${a}</b><b>${z}</b></i>${x}</span>`)
+  .replace(/\^(?:\{([^}]+)\}|(\d*[+−]|\d+))/g,(m,a,b)=>`<sup>${a||b}</sup>`)
+  .replace(/_\{([^}]+)\}/g,'<sub>$1</sub>');}
+function fm(s){return fx(s).replace(/\n/g,'<br>')}
+const KEY='atom-chemie-v1';
+let S={known:{},q:{},tests:[],chk:{}};
+try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o&&typeof o==='object')S=Object.assign(S,o)}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const CARDS=CARDS_RAW.map((c,i)=>({id:'c'+i,t:c[0],f:c[1],b:c[2]}));
+const TN=Object.fromEntries(TOPICS.map(t=>[t.id,t.n]));
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+const L='ABCDE';
+function mastery(t){const cs=CARDS.filter(c=>c.t===t),qs=QS.filter(q=>q.t===t);
+  const k=cs.filter(c=>S.known[c.id]).length,r=qs.filter(q=>S.q[q.id]===1).length;
+  return{k,kn:cs.length,r,rn:qs.length,p:(k+r)/((cs.length+qs.length)||1)}}
+function grade(p){return p>=.9?1:p>=.75?2:p>=.6?3:p>=.45?4:5}
+const CHECK_SVG='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.3 3.2L13 4.5"/></svg>';
+
+/* ===== navigation ===== */
+let tab='home';
+function go(t){
+  tab=t;
+  $$('.nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  $$('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+t));
+  if(t==='home')renderHome();
+  if(t==='cards')renderCards();
+  if(t==='quiz')renderQuiz();
+  if(t==='test')renderTest();
+  Models.setActive(t==='lab');
+  if(t!=='home')Models.hero(null);
+  window.scrollTo(0,0);
+}
+$$('.nav button').forEach(b=>b.addEventListener('click',()=>go(b.dataset.tab)));
+
+/* ===== home ===== */
+function renderHome(){
+  const known=CARDS.filter(c=>S.known[c.id]).length;
+  const ans=QS.filter(q=>S.q[q.id]!==undefined), right=ans.filter(q=>S.q[q.id]===1).length;
+  const lt=S.tests[S.tests.length-1];
+  const chk=OKRUHY.filter((o,i)=>S.chk[i]).length;
+  const ms=TOPICS.map(t=>({t,...mastery(t.id)}));
+  const weak=ms.slice().sort((a,b)=>a.p-b.p)[0];
+  const all=ms.reduce((s,m)=>s+m.k+m.r,0)/ (CARDS.length+QS.length);
+  $('#v-home').innerHTML=`<div class="stack rise">
+   <div class="hero"><canvas id="heroCv" aria-hidden="true"></canvas>
+     <div class="eyebrow">Test z chemie · zítra</div>
+     <h1>Atom, jádro a elektronový obal</h1>
+     <p>${CARDS.length} kartiček, ${QS.length} otázek a animované modely. Celkem máš zvládnuto <b class="mono">${Math.round(all*100)} %</b>.</p>
+   </div>
+   <div class="grid kpis">
+     <div class="card kpi"><div class="v">${known}<span class="muted" style="font-size:1rem">/${CARDS.length}</span></div><div class="l">kartiček zvládnuto</div></div>
+     <div class="card kpi"><div class="v">${ans.length?Math.round(right/ans.length*100)+' %':'–'}</div><div class="l">${ans.length?`úspěšnost v kvízu (${ans.length} otázek)`:'zatím žádný kvíz'}</div></div>
+     <div class="card kpi"><div class="v">${lt?lt.grade:'–'}</div><div class="l">${lt?`poslední test: ${lt.pts}/${lt.total} (${Math.round(lt.pct*100)} %)`:'zatím žádný test'}</div></div>
+     <div class="card kpi"><div class="v">${chk}<span class="muted" style="font-size:1rem">/${OKRUHY.length}</span></div><div class="l">okruhů odškrtnuto</div></div>
+   </div>
+   <div class="grid two">
+    <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:4px"><h2 class="h-sec">Zvládnutí okruhů</h2><span class="muted" style="font-size:.78rem">kartičky + kvíz</span></div>
+      ${ms.map(m=>`<button class="mrow" data-quiz="${m.t.id}"><span class="nm">${m.t.n}</span><span class="pc">${Math.round(m.p*100)} %</span><span class="bar"><i data-p="${m.p}" style="transform:scaleX(0)"></i></span></button>`).join('')}
+    </div>
+    <div class="stack">
+     <div class="card"><div class="eyebrow">Doporučení</div><h2 class="h-sec" style="margin:6px 0 4px">${weak.t.n}</h2>
+       <p class="muted" style="margin-bottom:12px">Tady máš nejmenší zvládnutí (${Math.round(weak.p*100)} %). Začni krátkým kvízem.</p>
+       <div class="row"><button class="btn pri" data-quiz="${weak.t.id}">Kvíz</button><button class="btn" data-cards="${weak.t.id}">Kartičky</button></div></div>
+     <div class="card"><h2 class="h-sec" style="margin-bottom:6px">Okruhy ke zkoušce</h2>
+       ${OKRUHY.map((o,i)=>`<button class="chk" role="checkbox" aria-checked="${!!S.chk[i]}" data-chk="${i}"><span class="bx">${CHECK_SVG}</span><span class="tx">${fm(o[1])}</span></button>`).join('')}
+     </div>
+    </div>
+   </div>
+   <div class="card"><h2 class="h-sec" style="margin-bottom:8px">Tahák: druhy záření</h2>
+    <div class="tbl-wrap">${fx(`<table class="t"><thead><tr><th>Záření</th><th>Co to je</th><th>Z</th><th>A</th><th>Posun v PSP</th><th>Stínění</th></tr></thead><tbody>
+     <tr><td><b>α</b></td><td>jádro helia {4|2|He}</td><td>−2</td><td>−4</td><td>2 místa vlevo</td><td>list papíru, kůže</td></tr>
+     <tr><td><b>β^−</b></td><td>elektron {0|−1|e}, n → p</td><td>+1</td><td>0</td><td>1 místo vpravo</td><td>hliníkový plech, voda 1–2 cm</td></tr>
+     <tr><td><b>β^+</b></td><td>pozitron {0|+1|e}, p → n</td><td>−1</td><td>0</td><td>1 místo vlevo</td><td>podobně jako β^−</td></tr>
+     <tr><td><b>γ</b></td><td>foton (elmag. vlnění)</td><td>0</td><td>0</td><td>žádný</td><td>tlustý beton, olovo</td></tr>
+     <tr><td><b>n</b></td><td>neutron, bez náboje</td><td colspan="2">neionizuje přímo</td><td>–</td><td>voda, parafín, beton</td></tr>
+    </tbody></table>`)}</div></div>
+  </div>`;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>$$('#v-home .bar i').forEach(i=>i.style.transform=`scaleX(${Math.max(.02,i.dataset.p)})`)));
+  Models.hero($('#heroCv'));
+}
+document.addEventListener('click',e=>{
+  const q=e.target.closest('[data-quiz]'); if(q&&tab==='home'){Z.pendingTopic=q.dataset.quiz;go('quiz');return}
+  const c=e.target.closest('[data-cards]'); if(c){C.filter=c.dataset.cards;C.i=0;C.deck=null;go('cards');return}
+  const k=e.target.closest('[data-chk]'); if(k){const i=k.dataset.chk;S.chk[i]=!S.chk[i];save();k.setAttribute('aria-checked',!!S.chk[i]);return}
+});
+
+/* ===== flashcards ===== */
+const C={filter:'all',deck:null,i:0,ok:0,no:0,shuf:false,flipped:false};
+function buildDeck(){
+  let l=CARDS.filter(c=>C.filter==='all'||(C.filter==='unknown'?!S.known[c.id]:c.t===C.filter));
+  C.deck=C.shuf?shuffle(l):l; C.i=0;C.ok=0;C.no=0;C.flipped=false;
+}
+function renderCards(){
+  if(!C.deck)buildDeck();
+  const el=$('#v-cards');
+  const chips=[['all','Vše',CARDS.length],...TOPICS.map(t=>[t.id,t.n,CARDS.filter(c=>c.t===t.id).length]),['unknown','Nezvládnuté',CARDS.filter(c=>!S.known[c.id]).length]];
+  let body;
+  if(!C.deck.length) body=`<div class="card empty">V této sadě nic není. Vyber jiný okruh.</div>`;
+  else if(C.i>=C.deck.length){
+    body=`<div class="card stack" style="align-items:flex-start"><div class="eyebrow">Hotovo</div><h2 class="h-sec" style="font-size:1.6rem">Prošel jsi ${C.deck.length} kartiček</h2>
+     <p class="muted">Umím: <b class="mono">${C.ok}</b> · Ještě ne: <b class="mono">${C.no}</b></p>
+     <div class="row"><button class="btn pri" id="cAgainUn">Projít nezvládnuté</button><button class="btn" id="cAgain">Od začátku</button></div></div>`;
+  } else {
+    const c=C.deck[C.i];
+    body=`<div class="deck"><div class="dots"><span>${C.i+1} / ${C.deck.length}</span><span>${C.ok} umím · ${C.no} ještě ne</span></div>
+     <div class="bar"><i style="transform:scaleX(${C.i/C.deck.length||0.01})"></i></div>
+     <div class="stage" id="stage">
+       <div class="stamp l">JEŠTĚ NE</div><div class="stamp r">UMÍM</div>
+       <div class="drag" id="drag"><div class="flip${C.flipped?' on':''}" id="flip">
+         <div class="face"><span class="pill topic">${TN[c.t]}</span><div class="q">${fm(c.f)}</div><div class="hint">Klepni pro odpověď · přejeď doprava, když to umíš</div></div>
+         <div class="face bk"><span class="pill topic">Odpověď</span><div class="ans">${fm(c.b)}</div></div>
+       </div></div>
+     </div>
+     <div class="deckbtns"><button class="btn bad" id="cNo">Ještě ne</button><button class="btn ok" id="cYes">Umím</button></div>
+     <div class="row" style="justify-content:space-between"><button class="btn sm" id="cPrev" ${C.i?'':'disabled'}>Zpět</button><button class="btn sm" id="cFlip">Otočit</button><button class="btn sm" id="cShuf" aria-pressed="${C.shuf}">${C.shuf?'Míchání zapnuto':'Zamíchat'}</button></div></div>`;
+  }
+  el.innerHTML=`<div class="stack"><div class="chips" role="group" aria-label="Okruh">${chips.map(c=>`<button class="chip" aria-pressed="${C.filter===c[0]}" data-f="${c[0]}">${c[1]} <span class="mono" style="opacity:.6">${c[2]}</span></button>`).join('')}</div>${body}</div>`;
+  $$('.chip',el).forEach(b=>b.onclick=()=>{C.filter=b.dataset.f;buildDeck();renderCards()});
+  const g=id=>$('#'+id,el);
+  if(g('cAgain'))g('cAgain').onclick=()=>{buildDeck();renderCards()};
+  if(g('cAgainUn'))g('cAgainUn').onclick=()=>{C.filter='unknown';buildDeck();renderCards()};
+  if(g('cYes')){g('cYes').onclick=()=>cardAnswer(true);g('cNo').onclick=()=>cardAnswer(false);
+    g('cFlip').onclick=cardFlip;
+    g('cPrev').onclick=()=>{if(C.i>0){C.i--;C.flipped=false;renderCards()}};
+    g('cShuf').onclick=()=>{C.shuf=!C.shuf;const keep=C.filter;buildDeck();renderCards()};
+    bindDrag();}
+}
+function cardFlip(){const f=$('#flip');if(!f)return;C.flipped=!C.flipped;f.classList.toggle('on',C.flipped)}
+function cardAnswer(yes,fly){
+  const c=C.deck[C.i]; if(!c)return;
+  if(yes){S.known[c.id]=1;C.ok++}else{delete S.known[c.id];C.no++}
+  save();C.i++;C.flipped=false;
+  if(fly){setTimeout(renderCards,reduced()?0:230)}else{
+    const d=$('#drag'); if(d&&!reduced()){d.classList.add('back');d.style.transform=`translateX(${yes?60:-60}px)`;d.style.opacity=0;setTimeout(renderCards,160)}else renderCards();
+  }
+}
+function bindDrag(){
+  const d=$('#drag'),st=$('#stage'); if(!d)return;
+  const sl=$('.stamp.l',st),sr=$('.stamp.r',st);
+  let sx=0,dx=0,vx=0,lx=0,lt=0,moved=false,on=false;
+  d.addEventListener('pointerdown',e=>{if(e.button>0)return;on=true;moved=false;sx=lx=e.clientX;lt=performance.now();vx=0;dx=0;d.classList.remove('back');d.setPointerCapture(e.pointerId)});
+  d.addEventListener('pointermove',e=>{if(!on)return;dx=e.clientX-sx;if(Math.abs(dx)>8)moved=true;
+    const n=performance.now(),dt=n-lt||1;vx=.7*vx+.3*((e.clientX-lx)/dt);lx=e.clientX;lt=n;
+    if(!moved)return;
+    d.style.transform=`translateX(${dx}px) rotate(${dx/24}deg)`;
+    const a=Math.min(1,Math.abs(dx)/110);sr.style.opacity=dx>0?a:0;sl.style.opacity=dx<0?a:0;});
+  const end=cancel=>e=>{if(!on)return;on=false;
+    if(!moved&&!cancel){cardFlip();return}
+    const proj=dx+vx*180; // momentum projection, in px
+    if(!cancel&&Math.abs(proj)>140){const dir=proj>0?1:-1;d.classList.add('back');
+      d.style.transform=`translateX(${dir*Math.max(innerWidth,600)}px) rotate(${dir*16}deg)`;d.style.opacity=0;cardAnswer(dir>0,true)}
+    else{d.classList.add('back');d.style.transform='';sr.style.opacity=sl.style.opacity=0}};
+  d.addEventListener('pointerup',end(false));d.addEventListener('pointercancel',end(true));
+}
+document.addEventListener('keydown',e=>{
+  if(tab!=='cards'||!C.deck||C.i>=C.deck.length)return;
+  if(e.key===' '||e.key==='Enter'){if(document.activeElement&&document.activeElement.tagName==='BUTTON')return;e.preventDefault();cardFlip()}
+  if(e.key==='ArrowRight')cardAnswer(true);if(e.key==='ArrowLeft')cardAnswer(false);
+});
+
+/* ===== quiz ===== */
+const Z={stage:'menu',title:'',list:[],i:0,picked:null,opts:[],right:0,log:[],pendingTopic:null};
+function pickSet(pool,n){ // wrong first, then unseen, then known
+  const w=shuffle(pool.filter(q=>S.q[q.id]===0)),u=shuffle(pool.filter(q=>S.q[q.id]===undefined)),k=shuffle(pool.filter(q=>S.q[q.id]===1));
+  return shuffle([...w,...u,...k].slice(0,n));
+}
+function startQuiz(title,list){Z.stage='run';Z.title=title;Z.list=list;Z.i=0;Z.right=0;Z.log=[];Z.picked=null;prepOpts();renderQuiz()}
+function prepOpts(){const q=Z.list[Z.i];if(!q)return;const o=q.o.map((x,i)=>({x,ok:i===q.a}));Z.opts=q.fixed?o:shuffle(o);Z.picked=null}
+function renderQuiz(){
+  const el=$('#v-quiz');
+  if(Z.pendingTopic){const t=Z.pendingTopic;Z.pendingTopic=null;startQuiz(TN[t],pickSet(QS.filter(q=>q.t===t),12));return}
+  if(Z.stage==='menu'){
+    const wrong=QS.filter(q=>S.q[q.id]===0);
+    el.innerHTML=`<div class="stack rise"><div><h2 class="h-sec" style="font-size:1.5rem">Kvíz podle okruhů</h2><p class="muted">12 otázek v sadě. Nejdřív se ptá na to, co ti nešlo, pak na nové. Po každé odpovědi hned vidíš vysvětlení.</p></div>
+     <div class="grid tiles">${TOPICS.map(t=>{const m=mastery(t.id);return`<button class="tile" data-set="${t.id}"><span class="nm">${t.n}</span><span class="muted" style="font-size:.82rem">${m.rn} otázek · ${m.r} správně</span><span class="bar"><i style="transform:scaleX(${Math.max(.02,m.rn?m.r/m.rn:0)})"></i></span></button>`}).join('')}
+      <button class="tile" data-set="mix"><span class="nm">Mix všeho</span><span class="muted" style="font-size:.82rem">20 náhodných otázek</span><span class="pill" style="align-self:flex-start">míchaná sada</span></button>
+      <button class="tile" data-set="wrong" ${wrong.length?'':'disabled style="opacity:.5"'}><span class="nm">Moje chyby</span><span class="muted" style="font-size:.82rem">${wrong.length} otázek k opakování</span><span class="pill" style="align-self:flex-start;background:var(--bad-soft);color:var(--bad)">oprava</span></button>
+     </div></div>`;
+    $$('.tile',el).forEach(b=>b.onclick=()=>{const s=b.dataset.set;if(b.disabled)return;
+      if(s==='mix')startQuiz('Mix všeho',pickSet(QS,20));
+      else if(s==='wrong')startQuiz('Moje chyby',shuffle(QS.filter(q=>S.q[q.id]===0)).slice(0,20));
+      else startQuiz(TN[s],pickSet(QS.filter(q=>q.t===s),12))});
+    return;
+  }
+  if(Z.stage==='run'){
+    const q=Z.list[Z.i],done=Z.picked!==null,n=Z.list.length;
+    el.innerHTML=`<div class="stack"><div class="row" style="justify-content:space-between"><button class="btn sm" id="zExit">Ukončit</button><span class="pill">${Z.title}</span><span class="mono muted">${Z.i+1}/${n}</span></div>
+     <div class="prog">${Z.list.map((_,i)=>`<i class="${i<Z.log.length?(Z.log[i]?'ok':'no'):i===Z.i?'cur':''}"></i>`).join('')}</div>
+     <div class="card qcard"><span class="pill">${TN[q.t]}</span><div class="qt">${fm(q.q)}</div>
+      <div class="opts">${Z.opts.map((o,i)=>`<button class="opt${done?(o.ok?' right':Z.picked===i?' wrong':''):''}" data-i="${i}" ${done?'disabled':''}><span class="k">${L[i]}</span><span>${fm(o.x)}</span></button>`).join('')}</div>
+      ${done?`<div class="expl"><b class="${Z.opts[Z.picked].ok?'g':'r'}">${Z.opts[Z.picked].ok?'Správně.':'Špatně.'}</b> ${fm(q.e)}</div>`:''}
+     </div>
+     ${done?`<button class="btn pri" id="zNext">${Z.i+1<n?'Další otázka':'Zobrazit výsledek'}</button>`:''}</div>`;
+    $('#zExit').onclick=()=>{Z.stage='menu';renderQuiz()};
+    $$('.opt',el).forEach(b=>b.onclick=()=>pickAnswer(+b.dataset.i));
+    if(done)$('#zNext').onclick=nextQ;
+    return;
+  }
+  // done
+  const n=Z.list.length,pc=Z.right/n;
+  const wrong=Z.list.filter((q,i)=>!Z.log[i]);
+  el.innerHTML=`<div class="stack"><div class="card stack" style="align-items:flex-start"><span class="pill">${Z.title}</span>
+    <div class="score">${Z.right}<span class="muted" style="font-size:1.6rem">/${n}</span></div>
+    <div class="bar" style="width:100%"><i style="transform:scaleX(${Math.max(.02,pc)});background:${pc>=.75?'var(--ok)':pc>=.5?'var(--photon)':'var(--bad)'}"></i></div>
+    <p class="muted">${pc===1?'Bez chyby.':pc>=.75?'Dobrá práce, projdi si zbylé chyby.':pc>=.5?'Základ máš, chyby si projdi níž a zkus znovu.':'Zkus nejdřív kartičky k tomuto okruhu a pak kvíz zopakuj.'}</p>
+    <div class="row"><button class="btn pri" id="zAgain">Nová sada</button>${wrong.length?'<button class="btn" id="zFix">Opravit chyby</button>':''}<button class="btn" id="zMenu">Menu</button></div></div>
+    ${wrong.length?`<div class="card"><h2 class="h-sec" style="margin-bottom:4px">K opakování</h2>${wrong.map(q=>`<div class="rev"><div class="qt">${fm(q.q)}</div><div><b class="mono" style="color:var(--ok)">Správně:</b> ${fm(q.o[q.a])}</div><div class="muted" style="margin-top:4px">${fm(q.e)}</div></div>`).join('')}</div>`:''}</div>`;
+  $('#zMenu').onclick=()=>{Z.stage='menu';renderQuiz()};
+  $('#zAgain').onclick=()=>{const t=TOPICS.find(t=>t.n===Z.title);startQuiz(Z.title,t?pickSet(QS.filter(q=>q.t===t.id),12):pickSet(QS,20))};
+  if($('#zFix'))$('#zFix').onclick=()=>startQuiz('Moje chyby',shuffle(wrong));
+}
+function pickAnswer(i){
+  if(Z.picked!==null)return;
+  const q=Z.list[Z.i];Z.picked=i;const ok=Z.opts[i].ok;
+  S.q[q.id]=ok?1:0;save();Z.log[Z.i]=ok;if(ok)Z.right++;
+  renderQuiz();
+  if(!ok&&!reduced()){const b=$$('.opt')[i];b&&b.classList.add('shake')}
+  const ex=$('.expl');ex&&ex.scrollIntoView({block:'nearest',behavior:reduced()?'auto':'smooth'});
+}
+function nextQ(){Z.i++;if(Z.i>=Z.list.length){Z.stage='done'}else prepOpts();renderQuiz();window.scrollTo(0,0)}
+document.addEventListener('keydown',e=>{
+  if(tab!=='quiz'||Z.stage!=='run')return;
+  const n=+e.key;if(n>=1&&n<=Z.opts.length&&Z.picked===null)pickAnswer(n-1);
+  else if(e.key==='Enter'&&Z.picked!==null)nextQ();
+});
+
+/* ===== test ===== */
+const T={stage:'menu',def:null,qs:[],opts:[],ans:[],cur:0,end:0,timer:null,confirm:false,onlyWrong:false,res:null};
+const TESTS=[
+ {id:'A',n:'Vzorový test z fotky',d:'Všech 24 otázek ze skenu, ve stejném pořadí. Je to nejlepší odhad, jak bude test vypadat.',min:30,make:()=>SCAN.map(id=>QS.find(q=>q.id===id))},
+ {id:'B',n:'Jádro a radioaktivita',d:'20 nových otázek: nuklidy, záření, přeměny a poločas rozpadu.',min:25,make:()=>spread(['nuklidy','zareni','premeny','polocas','stavba'],20)},
+ {id:'C',n:'Elektronový obal',d:'20 otázek: modely, kvantová čísla, orbitaly a konfigurace.',min:25,make:()=>spread(['modely','kvantova','konfig'],20)}
+];
+function spread(topics,n){ // round-robin across topics, excluding scan items so they stay fresh
+  const pools=topics.map(t=>shuffle(QS.filter(q=>q.t===t&&!q.scan)));const out=[];
+  while(out.length<n&&pools.some(p=>p.length))for(const p of pools){if(p.length&&out.length<n)out.push(p.pop())}
+  return shuffle(out);
+}
+function fmtT(s){s=Math.max(0,s);return String(s/60|0).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function startTest(def){
+  T.def=def;T.qs=def.make();T.opts=T.qs.map(q=>{const o=q.o.map((x,i)=>({x,ok:i===q.a}));return q.fixed?o:shuffle(o)});
+  T.ans=T.qs.map(()=>null);T.cur=0;T.confirm=false;T.stage='run';T.end=Date.now()+def.min*60000;
+  clearInterval(T.timer);T.timer=setInterval(tick,1000);renderTest();window.scrollTo(0,0);
+}
+function tick(){
+  if(tab!=='test'||T.stage!=='run')return;
+  const left=Math.round((T.end-Date.now())/1000),t=$('#tTimer');
+  if(t){t.textContent=fmtT(left);t.classList.toggle('low',left<=300)}
+  if(left<=0)finishTest();
+}
+function finishTest(){
+  clearInterval(T.timer);
+  let pts=0;const total=T.qs.length;
+  T.qs.forEach((q,i)=>{const ok=T.ans[i]!==null&&T.opts[i][T.ans[i]].ok;if(ok)pts++;S.q[q.id]=ok?1:0});
+  const pct=pts/total;T.res={pts,total,pct,grade:grade(pct)};
+  S.tests.push({n:T.def.n,pts,total,pct,grade:T.res.grade,ts:Date.now()});S.tests=S.tests.slice(-20);save();
+  T.stage='done';T.onlyWrong=false;renderTest();window.scrollTo(0,0);
+}
+function renderTest(){
+  const el=$('#v-test');
+  if(T.stage==='menu'){
+    const hist=S.tests.slice(-3).reverse();
+    el.innerHTML=`<div class="stack rise"><div><h2 class="h-sec" style="font-size:1.5rem">Zkušební test</h2><p class="muted">Bez nápovědy, s časovým limitem. Výsledek a vysvětlení uvidíš až po odevzdání. Známka se počítá jako ve škole: 90 % jednička, 75 % dvojka, 60 % trojka, 45 % čtyřka.</p></div>
+     <div class="grid tiles">${TESTS.map(t=>`<button class="tile" data-t="${t.id}"><span class="pill" style="align-self:flex-start">${t.min} min</span><span class="nm">${t.n}</span><span class="muted" style="font-size:.86rem">${t.d}</span></button>`).join('')}</div>
+     ${hist.length?`<div class="card"><h2 class="h-sec" style="margin-bottom:4px">Poslední pokusy</h2>${hist.map(h=>`<div class="mrow" style="grid-template-columns:1fr auto auto"><span class="nm">${h.n}</span><span class="mono muted">${h.pts}/${h.total}</span><span class="pill">známka ${h.grade}</span></div>`).join('')}</div>`:''}</div>`;
+    $$('.tile',el).forEach(b=>b.onclick=()=>startTest(TESTS.find(t=>t.id===b.dataset.t)));
+    return;
+  }
+  if(T.stage==='run'){
+    const q=T.qs[T.cur],n=T.qs.length,left=Math.round((T.end-Date.now())/1000),un=T.ans.filter(a=>a===null).length;
+    el.innerHTML=`<div class="stack"><div class="row" style="justify-content:space-between"><span class="pill">${T.def.n}</span><span class="timer${left<=300?' low':''}" id="tTimer">${fmtT(left)}</span></div>
+     <div class="nav-q">${T.qs.map((_,i)=>`<button class="${T.ans[i]!==null?'a':''} ${i===T.cur?'c':''}" data-n="${i}" aria-label="Otázka ${i+1}">${i+1}</button>`).join('')}</div>
+     <div class="card qcard"><span class="eyebrow">Otázka ${T.cur+1} z ${n}</span><div class="qt">${fm(q.q)}</div>
+      <div class="opts">${T.opts[T.cur].map((o,i)=>`<button class="opt${T.ans[T.cur]===i?' sel':''}" data-i="${i}"><span class="k">${L[i]}</span><span>${fm(o.x)}</span></button>`).join('')}</div></div>
+     <div class="row" style="justify-content:space-between"><button class="btn" id="tPrev" ${T.cur?'':'disabled'}>Zpět</button>
+      <button class="btn ${T.confirm?'bad':''}" id="tEnd">${T.confirm?`Opravdu odevzdat? ${un?`Bez odpovědi: ${un}`:''}`:'Odevzdat test'}</button>
+      <button class="btn pri" id="tNext" ${T.cur<n-1?'':'disabled'}>Další</button></div></div>`;
+    $$('.nav-q button',el).forEach(b=>b.onclick=()=>{T.cur=+b.dataset.n;T.confirm=false;renderTest()});
+    $$('.opt',el).forEach(b=>b.onclick=()=>{T.ans[T.cur]=+b.dataset.i;T.confirm=false;renderTest()});
+    $('#tPrev').onclick=()=>{T.cur--;T.confirm=false;renderTest()};
+    $('#tNext').onclick=()=>{T.cur++;T.confirm=false;renderTest();window.scrollTo(0,0)};
+    $('#tEnd').onclick=()=>{if(T.confirm)finishTest();else{T.confirm=true;renderTest()}};
+    return;
+  }
+  const r=T.res,col=r.grade<=2?'var(--ok)':r.grade===3?'var(--photon)':'var(--bad)';
+  const items=T.qs.map((q,i)=>({q,i,ok:T.ans[i]!==null&&T.opts[i][T.ans[i]].ok})).filter(x=>!T.onlyWrong||!x.ok);
+  el.innerHTML=`<div class="stack"><div class="card stack" style="align-items:flex-start"><span class="pill">${T.def.n}</span>
+    <div class="row" style="gap:22px;align-items:flex-end"><div><div class="eyebrow">Známka</div><div class="score" style="color:${col}">${r.grade}</div></div><div><div class="eyebrow">Body</div><div class="score" style="font-size:2.2rem">${r.pts}<span class="muted" style="font-size:1.2rem">/${r.total}</span></div></div><div class="mono muted">${Math.round(r.pct*100)} %</div></div>
+    <div class="row"><button class="btn pri" id="tAgain">Další test</button><button class="btn" id="tToggle" aria-pressed="${T.onlyWrong}">${T.onlyWrong?'Zobrazit všechny':'Jen chyby'}</button></div></div>
+    <div class="card"><h2 class="h-sec" style="margin-bottom:2px">Rozbor</h2>${items.length?items.map(x=>`<div class="rev"><div class="row" style="justify-content:space-between"><b class="mono">${x.i+1}.</b><span class="pill" style="${x.ok?'background:var(--ok-soft);color:var(--ok)':'background:var(--bad-soft);color:var(--bad)'}">${x.ok?'správně':T.ans[x.i]===null?'bez odpovědi':'špatně'}</span></div>
+      <div class="qt">${fm(x.q.q)}</div>${x.ok?'':`<div class="muted">Tvoje odpověď: ${T.ans[x.i]===null?'–':fm(T.opts[x.i][T.ans[x.i]].x)}</div>`}
+      <div><b class="mono" style="color:var(--ok)">Správně:</b> ${fm(x.q.o[x.q.a])}</div><div class="muted" style="margin-top:4px">${fm(x.q.e)}</div></div>`).join(''):'<div class="empty">Žádné chyby.</div>'}</div></div>`;
+  $('#tAgain').onclick=()=>{T.stage='menu';renderTest()};
+  $('#tToggle').onclick=()=>{T.onlyWrong=!T.onlyWrong;renderTest()};
+}
+
+/* ===== boot ===== */
+Models.init($('#v-lab'));
+renderHome();
+
+
+</script>
+
+</body></html>
